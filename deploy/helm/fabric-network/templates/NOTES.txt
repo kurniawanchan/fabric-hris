@@ -1,0 +1,17 @@
+fabric-network ({{ .Chart.Version }}) rendered for release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+REMINDER (standing scope decision, DEP-1): this chart is a design artifact.
+It has never been `helm install`-ed against a real cluster. Before ever
+running this for real, confirm at minimum:
+  - every *SecretName / *ConfigMapName reference in values.yaml resolves to
+    a real object in this namespace (this chart creates none of them) —
+    see README.md "Secret material" for the exact key/path contract each
+    must satisfy.
+  - the "TLS SAN vs. Kubernetes DNS naming" gap in README.md has been
+    resolved one way or the other (re-issued certs, or cluster DNS
+    aliasing) — CORE_PEER_ADDRESS/gossip endpoints below use the legacy
+    docker-compose hostnames (peer0.org1, peer0.<tenantID>, ...) verbatim,
+    which do not resolve inside a cluster by themselves.
+  - resource requests/limits (values.yaml `resources.*`) are sane defaults,
+    not measured against real load (QA-4/Caliper is the item that measures
+    real throughput/latency).

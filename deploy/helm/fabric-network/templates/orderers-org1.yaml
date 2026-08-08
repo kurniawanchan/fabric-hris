@@ -1,0 +1,12 @@
+# =============================================================================
+# orderers-org1.yaml — the 3-node Raft consenter set (Org1-operated), DEP-1
+# =============================================================================
+# Renders each entry of `.Values.org1.orderers` via the shared
+# "fabric-network.orderer" named template (_helpers.tpl). Consenter count
+# (3) is fixed by ADR-0012 §2 and by the genesis/channel config NET-1
+# already generated — see values.yaml's comment on `org1.orderers` for why
+# this is not a scale-by-editing-values.yaml knob.
+# =============================================================================
+{{- range .Values.org1.orderers }}
+{{ include "fabric-network.orderer" (dict "root" $ "node" .) }}
+{{- end }}

@@ -1,0 +1,36 @@
+# =============================================================================
+# peer-tenants.yaml — parametrized per-tenant OrgClient-<tenantID> peer, DEP-1
+# =============================================================================
+# THIS is the template DEP-1's DoD names explicitly: one entry in
+# `.Values.tenants` (values.yaml) produces one complete peer (ConfigMap +
+# headless Service + StatefulSet) with no hand-written per-tenant copy under
+# templates/. Onboarding tenant03 is a values.yaml list append, not a new
+# file — the mechanical proof this chart's README.md asks a reviewer to
+# check.
+#
+# Per-tenant fields derived here rather than duplicated in values.yaml, so
+# the naming convention lives in exactly one place:
+#   - k8s object name : peer0-<id>            (DNS-1123; dot -> hyphen)
+#   - legacy hostname  : peer0.<id>            (CORE_PEER_ID/ADDRESS/gossip —
+#                         kept dotted for parity with the pre-issued
+#                         crypto-config material's expected TLS SAN; see
+#                         README.md "TLS SAN vs. Kubernetes DNS naming")
+#   - gossip bootstrap  : self (single-peer org — no sibling to elect
+#                         against, same static-leader pattern
+#                         network-docker-compose.yaml uses for peer0.tenant01
+#                         /peer0.tenant02/peer0.org3)
+#   - MSP ID            : OrgClient-<id>MSP    (hyphen — ADR-0013's
+#                         2026-08-06 empirical correction; assembled once by
+#                         the "fabric-network.tenantMspID" helper)
+# =============================================================================
+{{- range .Values.tenants }}
+{{- $hostname := printf "peer0.%s" .id }}
+{{- $node := merge (dict
+      "name" (printf "peer0-%s" .id)
+      "hostname" $hostname
+      "gossipBootstrap" (printf "%s:7051" $hostname)
+      "useLeaderElection" false
+      "orgLeader" true
+    ) . }}
+{{ include "fabric-network.peer" (dict "root" $ "node" $node "mspID" (include "fabric-network.tenantMspID" .id)) }}
+{{- end }}

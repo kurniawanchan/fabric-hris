@@ -1,0 +1,313 @@
+# =============================================================================
+# values.yaml — deploy/helm/fabric-network (DEP-1)
+# =============================================================================
+# Every hostname, port, MSP ID, and env-var name below is copied from the
+# actual source-of-truth files, not invented:
+#   fabric-network/network/compose/network-docker-compose.yaml (peers/orderers)
+#   fabric-network/network/compose/ca-docker-compose.yaml       (ca.org1)
+#   fabric-network/network/fabric-ca/ca-org1-config.yaml         (CA config)
+# Read this chart's README.md first — it records every place this file's
+# shape deliberately DEVIATES from a literal line-for-line copy of those
+# compose files (host-port renumbering, the cross-org TLS-CA trust bundle
+# generalized to the full tenant list instead of compose's stale
+# tenant01-only mount set, the CA's bootstrap-admin password moved out of the
+# config file and into a Secret reference) and WHY each deviation was made.
+#
+# No private key, password, or other secret literal appears anywhere in this
+# file. Every field ending in `SecretName` or `ConfigMapName` is a REFERENCE
+# to an object this chart expects to already exist in the target namespace —
+# populated by an out-of-band provisioning step (DEP-2's scope: "Identity/
+# TLS/HSM provisioning + cert-rotation runbook"), never created by this
+# chart. See README.md "Secret material" for the exact key/path contract
+# each referenced Secret/ConfigMap must satisfy.
+# =============================================================================
+
+nameOverride: ""
+fullnameOverride: ""
+
+# CORE_PEER_NETWORKID on every peer — copied verbatim from
+# network-docker-compose.yaml (identical across all peers/tenants; it is a
+# gossip-message-scoping value, not a per-org or per-tenant identifier).
+networkId: hris-pilot
+
+images:
+  peer:
+    repository: hyperledger/fabric-peer
+    # [deviation, disclosed] network-docker-compose.yaml pins the FLOATING
+    # `2.5` tag (per that file's own header, because the backlog row that
+    # produced it named the floating tag literally). This chart pins an
+    # EXACT patch instead, per that same file's own [VERIFY] flag ("pin to
+    # an exact patch tag ... before any non-throwaway/CI use") and per
+    # fabric-skill-suite/skills/fabric-core/references/version-matrix.md,
+    # which records v2.5.16 as the latest patch present in the pinned docs
+    # corpus snapshot. Newer patches
+    # likely exist upstream — re-verify before this chart is ever the basis
+    # for a real rollout (which, per this item's standing scope decision, is
+    # explicitly not now).
+    tag: "2.5.16"
+    pullPolicy: IfNotPresent
+  orderer:
+    repository: hyperledger/fabric-orderer
+    tag: "2.5.16"
+    pullPolicy: IfNotPresent
+  ca:
+    repository: hyperledger/fabric-ca
+    # ca-docker-compose.yaml/ca-org1-config.yaml both flag the same
+    # [VERIFY]-pin-exact-patch caution for `hyperledger/fabric-ca:1.5`;
+    # ca-org1-config.yaml's own `version: 1.5.15` field is the exact patch
+    # already recorded as targeted for this org's CA. Reused verbatim.
+    tag: "1.5.15"
+    pullPolicy: IfNotPresent
+
+# mTLS is enabled by default for every peer/orderer, matching this
+# workspace's own network design (NET-DESIGN §6: "clientAuthRequired for
+# admin/ordering") and network-docker-compose.yaml's literal
+# CORE_PEER_TLS_CLIENTAUTHREQUIRED=true / ORDERER_*_TLS_CLIENTAUTHREQUIRED=true
+# on every node. Turning this off is not a supported configuration of this
+# chart — the flag exists so the generated ConfigMap's intent is explicit and
+# auditable in `helm template` output, not because false is a real option.
+mtls:
+  enabled: true
+
+logging:
+  spec: INFO # FABRIC_LOGGING_SPEC — identical on every node in the source compose file.
+
+metrics:
+  # CORE_METRICS_PROVIDER / ORDERER_METRICS_PROVIDER in the source compose
+  # file are both "disabled" — no metrics backend is stood up by that file.
+  # DEP-5 (observability) is the item that turns this on against a real
+  # backend; this chart does not get ahead of that decision.
+  provider: disabled
+
+# ---------------------------------------------------------------------------
+# Secret material — HOW an operator points this chart at real key material.
+# ---------------------------------------------------------------------------
+# This chart never inlines MSP/TLS bytes. Two supported sourcing modes for
+# every `*SecretName` reference below:
+#   - k8sSecret        — a plain, pre-created Kubernetes Secret in the
+#                         release namespace (populated by DEP-2's
+#                         provisioning step, e.g. from the existing
+#                         fabric-network/network/crypto-config/ tree,
+#                         re-keyed per the fixed layout README.md documents).
+#   - csiExternalSecret — the same material is instead exposed via the
+#                         Secrets Store CSI Driver (e.g. HSM/PKCS11-backed or
+#                         Vault-backed), referenced by a SecretProviderClass
+#                         name this chart does NOT create (DEP-2's / the
+#                         cluster operator's object) — every `*SecretName`
+#                         field is then read as a SecretProviderClass name
+#                         instead of a Secret name.
+# ADR-0019 Domain A (Fabric MSP signing keys target HSM/PKCS11 in
+# production) is exactly the case `csiExternalSecret` exists to model; this
+# chart does not itself talk to any HSM.
+secrets:
+  mode: k8sSecret # k8sSecret | csiExternalSecret
+
+persistence:
+  # "" = defer to the cluster's own default StorageClass. Left unset
+  # deliberately — this is a design artifact, not tied to any specific
+  # cloud provider's storage class names (gap G-13 in NET-DESIGN §6: the
+  # deployment target itself is [ASSUMPTION], outside this document's scope).
+  storageClassName: ""
+  accessModes:
+    - ReadWriteOnce
+  peerLedgerSize: 10Gi
+  ordererLedgerSize: 5Gi
+  caDataSize: 1Gi
+
+# Sane, generic defaults — not measured against real load. QA-4 (Caliper,
+# 200/500/1000/2000 TPS) is the item that will eventually calibrate real
+# sizing; this chart does not anticipate that result.
+resources:
+  peer:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  orderer:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  ca:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ---------------------------------------------------------------------------
+# Cross-org TLS CA trust bundle (ConfigMap reference — PUBLIC certs only, no
+# private key material, hence a ConfigMap rather than a Secret; see
+# README.md "Secret material" for why this one piece is modeled differently
+# from MSP/TLS Secrets).
+# ---------------------------------------------------------------------------
+# [deviation, disclosed] network-docker-compose.yaml's own header states the
+# INTENT plainly: "each PEER's clientRootCAs is set to the UNION of all
+# three peer-org TLS CAs" (org1 + tenant01 + org3, drawing no distinction
+# between org1/org3/tenant peers) — but the file's actual, hand-maintained
+# per-node mount lists have drifted from that stated intent: org1's two
+# peers mount only {org1, tenant01, org3}, missing tenant02 entirely (added
+# after that file was last touched at NET-7), and peer0.tenant01/
+# peer0.tenant02 each mount only {org1, <self>, org3}, never each other. A
+# per-tenant Helm TEMPLATE that copied that same hardcoded, tenant01-only
+# union would silently fail to scale to N tenants — exactly the defect this
+# item's DoD exists to avoid. This chart instead computes the union
+# structurally (see _helpers.tpl's own note on this): EVERY peer it renders
+# — org1's, org3's, and every tenant's alike — gets the identical full union
+# {org1, org3, every tenant in `.Values.tenants` below}, matching the source
+# file's STATED intent rather than its drifted snapshot; orderers get that
+# same union plus OrdererMSP's own TLS CA on top.
+# Per network-docker-compose.yaml's own "RESOLVED 2026-08-06" note, none of
+# this is currently READ by any env var on the real image (the multi-value
+# `CORE_PEER_TLS_CLIENTROOTCAS_FILES` array env var does not parse — cross-
+# org mTLS trust is sourced from channel-embedded MSP config instead, once a
+# channel exists). These mounts are kept for source-file parity and because
+# a future config-file-based (non-env-var) trust reference is not ruled out
+# — not because they are known to do anything today.
+crossTLSCAConfigMapName: "" # "" -> defaults to <fullname>-cross-tlsca; see _helpers.tpl
+
+# =============================================================================
+# Org1 — platform provider. Fixed shape: 2 peers, 3 Raft orderers, 1 CA.
+# =============================================================================
+# The `peers`/`orderers` LISTS below are implemented with the same named
+# Helm template ("fabric-network.peer" / "fabric-network.orderer" in
+# _helpers.tpl) used for the per-tenant loop further down — reused for
+# template DRYness, NOT because Org1's node counts are a scaling knob. Org1's
+# peer count (2) and orderer count (3, the Raft consenter set) are fixed by
+# ADR-0012's ratified topology and by the genesis/channel configuration
+# already generated at NET-1 (../fabric-network/network/configtx/
+# configtx.yaml's EtcdRaft.Consenters section names exactly these 3
+# orderers). Editing this list does not, by itself, add or remove a Raft
+# consenter — that requires a channel config update transaction (NET-6's
+# scope), never merely a Helm values change.
+org1:
+  mspID: Org1MSP
+
+  peers:
+    - name: peer0-org1 # k8s object name (DNS-1123: dots from the compose
+      # hostname "peer0.org1" become hyphens — see README.md "TLS SAN vs.
+      # Kubernetes DNS naming" for why the DOTTED form is still what's used
+      # inside CORE_PEER_ADDRESS/gossip below, not this object name).
+      hostname: peer0.org1 # CORE_PEER_ID / CORE_PEER_ADDRESS / gossip external endpoint.
+      gossipBootstrap: peer1.org1:7051
+      useLeaderElection: true
+      orgLeader: false
+      mspSecretName: org1-peer0-msp
+      tlsSecretName: org1-peer0-tls
+    - name: peer1-org1
+      hostname: peer1.org1
+      gossipBootstrap: peer0.org1:7051
+      useLeaderElection: true
+      orgLeader: false
+      mspSecretName: org1-peer1-msp
+      tlsSecretName: org1-peer1-tls
+
+  orderers:
+    - name: orderer0-org1
+      hostname: orderer0.org1
+      mspSecretName: orderer0-org1-msp
+      tlsSecretName: orderer0-org1-tls
+    - name: orderer1-org1
+      hostname: orderer1.org1
+      mspSecretName: orderer1-org1-msp
+      tlsSecretName: orderer1-org1-tls
+    - name: orderer2-org1
+      hostname: orderer2.org1
+      mspSecretName: orderer2-org1-msp
+      tlsSecretName: orderer2-org1-tls
+
+  ca:
+    name: ca-org1
+    caName: ca-org1 # FABRIC_CA_SERVER_CA_NAME, matches ca-docker-compose.yaml.
+    port: 7054
+    dataSize: "" # "" -> persistence.caDataSize
+    # Bootstrap admin identity (compose's literal `-b admin-org1:...` flag).
+    # [deviation, disclosed] ca-org1-config.yaml's own `registry.identities`
+    # block embeds this same identity's password IN PLAINTEXT in that file
+    # (a pre-existing NET-2 artifact, disclosed in that file's own header as
+    # a "belt-and-suspenders" duplicate of the `-b` flag — not something
+    # DEP-1 introduced or is fixing upstream). This chart's ConfigMap
+    # (templates/ca-org1.yaml) intentionally OMITS the registry.identities
+    # bootstrap entry from its rendered config and relies solely on the `-b`
+    # flag, whose value is read from this Secret reference at container
+    # start via $(...) env substitution — never written to any file this
+    # chart authors. Since the source file's own header already calls the
+    # config-file/`-b`-flag duplication belt-and-suspenders (i.e. redundant
+    # by design), dropping the redundant, secret-bearing half in the
+    # Kubernetes ConfigMap is a safe simplification, not a functional
+    # regression.
+    bootstrapAdminSecretName: ca-org1-bootstrap-admin # expects keys: username, password
+
+# =============================================================================
+# Org3 — auditor. 1 read-only peer (commit-only; read-only-ness is an
+# endorsement-policy property enforced at chaincode-commit time, NET-5 — this
+# node's own bring-up shape is identical to any other peer, per
+# network-docker-compose.yaml's own note).
+# =============================================================================
+org3:
+  mspID: Org3MSP
+  peers:
+    - name: peer0-org3
+      hostname: peer0.org3
+      gossipBootstrap: peer0.org3:7051 # single-peer org: static leader, bootstrap = self.
+      useLeaderElection: false
+      orgLeader: true
+      mspSecretName: org3-peer0-msp
+      tlsSecretName: org3-peer0-tls
+
+# =============================================================================
+# Per-tenant OrgClient-<tenantID> peers — THE parametrized template this
+# item's DoD requires. Add a tenant by appending one entry here; no template
+# file changes and no hand-written per-tenant copy are needed (that is the
+# whole point of `templates/peer-tenants.yaml` looping over this list via the
+# shared "fabric-network.peer" named template — the identical mechanism
+# proven twice already above, for org1.peers and org3.peers).
+#
+# Defaults to the two tenants this repo's live dev network already runs
+# (network-docker-compose.yaml's peer0.tenant01 + peer0.tenant02), so this
+# list demonstrates N=2, not just N=1 — a single-entry default would not by
+# itself prove the mechanism generalizes past a hardcoded special case.
+# tenant01's channel carries real (synthetic) committed data from prior
+# tests; tenant02's channel exists (NET-7) with no chaincode committed yet —
+# both facts are about channel/chaincode state, orthogonal to this chart's
+# concern (peer node bring-up only, matching NET-4's own file).
+# =============================================================================
+tenants:
+  - id: tenant01
+    # mspID is NOT listed here — computed as `OrgClient-<id>MSP` (hyphen,
+    # per ADR-0013's 2026-08-06 empirical correction; the underscore form
+    # fails configtxgen's signature-policy-rule tokenizer) by the
+    # "fabric-network.tenantMspID" helper in _helpers.tpl, so the naming
+    # rule lives in exactly one place instead of being retyped per tenant.
+    mspSecretName: tenant01-peer0-msp
+    tlsSecretName: tenant01-peer0-tls
+  - id: tenant02
+    mspSecretName: tenant02-peer0-msp
+    tlsSecretName: tenant02-peer0-tls
+
+# =============================================================================
+# Explicitly NOT in this chart (mirrors network-docker-compose.yaml's own
+# "NOT IN SCOPE HERE" boundary list, plus this item's own DoD note):
+#   - No anchor-service / Kafka-consumer deployable. ADR-0014 retired that
+#     design ("Anchor-service deployable units: 0"); the in-band recording
+#     component (REC-*) ships inside the existing HRIS write-path's own
+#     deployables (whatever platform/process hosts that write path — G-10,
+#     deliberately left open by ADR-0014 itself, not this chart's to
+#     resolve). There is therefore no REC-*/anchor/Kafka-consumer
+#     Deployment, StatefulSet, or CronJob anywhere under templates/.
+#   - No CLI/admin/tools Pod or Job: `peer channel join`, `osnadmin channel
+#     join`, chaincode lifecycle — NET-3/NET-5/CC-5's scope.
+#   - No chaincode / external-builder / docker.sock-equivalent mount.
+#   - No CouchDB — ADR-0007 ratifies LevelDB (goleveldb, wired into every
+#     peer's ConfigMap below), not re-decided here.
+#   - No per-tenant OR Org1/Org3 Fabric CA beyond ca.org1 — see README.md
+#     "Why only one CA template" for the deployment-boundary reasoning
+#     (OrgClient-<tenantID> is client-operated by definition, ADR-0012; Org3
+#     CA's operator is an unratified TBD, gap G-04).
+#   - No IPFS / ipfs-cluster workload — that is DEP-3's own chart, ADR-0016.
+# =============================================================================

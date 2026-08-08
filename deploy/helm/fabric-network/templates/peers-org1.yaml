@@ -1,0 +1,12 @@
+# =============================================================================
+# peers-org1.yaml — Org1's 2 peers (peer0.org1, peer1.org1), DEP-1
+# =============================================================================
+# Renders each entry of `.Values.org1.peers` via the shared
+# "fabric-network.peer" named template (_helpers.tpl) — the same mechanism
+# used for the per-tenant loop in peer-tenants.yaml. See values.yaml's
+# comment on `org1.peers` for why this list's length (2) is not a scaling
+# knob even though it uses the same range-based mechanism.
+# =============================================================================
+{{- range .Values.org1.peers }}
+{{ include "fabric-network.peer" (dict "root" $ "node" . "mspID" $.Values.org1.mspID) }}
+{{- end }}

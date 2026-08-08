@@ -1,0 +1,40 @@
+# =============================================================================
+# Chart.yaml — deploy/helm/fabric-network
+# =============================================================================
+# Backlog item: DEP-1 (agent-suite/06-roadmap/implementation-backlog.md)
+#   "Helm chart — Fabric network (Org1: 2 peers + 3 orderers; a per-tenant
+#   OrgClient-<tenantID> peer template) on the platform's cloud K8s"
+# Traces to: ADR-0012 (three-org topology, Raft sizing), ADR-0013
+#   (channel-per-tenant — the reason a per-tenant peer must be a template, not
+#   a fixed count), ADR-0014 (in-band recording — the reason this chart has no
+#   anchor-service/consumer workload), NET-DESIGN §6 (Transport & deployment).
+#
+# STANDING SCOPE NOTE (binding, restated from the task authorization — see
+# this chart's own README.md for the full statement): this chart is a GENERIC,
+# REVIEWABLE ARTIFACT ONLY. It translates
+# fabric-network/network/compose/{network,ca}-docker-compose.yaml into
+# Kubernetes primitives for design review. It has never been `helm install`-ed
+# or `helm template`-d against a real or test cluster — no cluster, real or
+# local (kind/minikube), was created or touched to produce this chart. Treat
+# every value below as a reviewable default, not a validated one.
+# =============================================================================
+apiVersion: v2
+name: fabric-network
+description: >-
+  Hyperledger Fabric 2.5 three-org pilot network (Org1 platform org, a
+  parametrized per-tenant OrgClient-<tenantID> client org, Org3 read-only
+  auditor) — a direct Kubernetes translation of this repo's
+  fabric-network/network/compose/*.yaml bring-up. Design artifact (DEP-1);
+  never applied to a real cluster.
+type: application
+version: 0.1.0
+appVersion: "2.5.16"
+keywords:
+  - hyperledger-fabric
+  - blockchain
+  - multi-tenant
+  - hris
+home: ""
+sources: []
+maintainers:
+  - name: fabric-hris (DSRM thesis prototype)

@@ -1,0 +1,13 @@
+# =============================================================================
+# peer-org3.yaml — Org3's read-only auditor peer, DEP-1
+# =============================================================================
+# Renders each entry of `.Values.org3.peers` (one entry by default:
+# peer0.org3) via the shared "fabric-network.peer" named template. This
+# node's bring-up shape is IDENTICAL to any other peer — read-only-ness is
+# an endorsement-policy property enforced at chaincode-commit time (NET-5),
+# not something this StatefulSet/ConfigMap encodes, matching
+# network-docker-compose.yaml's own note on its `peer0.org3` service.
+# =============================================================================
+{{- range .Values.org3.peers }}
+{{ include "fabric-network.peer" (dict "root" $ "node" . "mspID" $.Values.org3.mspID) }}
+{{- end }}

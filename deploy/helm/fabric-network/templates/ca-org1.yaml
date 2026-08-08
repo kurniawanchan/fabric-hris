@@ -1,0 +1,261 @@
+# =============================================================================
+# ca-org1.yaml — ca.org1 (Org1MSP's identity+TLS CA), DEP-1
+# =============================================================================
+# Direct translation of ca-docker-compose.yaml's `ca.org1` service +
+# fabric-network/network/fabric-ca/ca-org1-config.yaml, with one deliberate
+# omission: the bootstrap admin identity's plaintext password, which that
+# source config file embeds under `registry.identities` (disclosed there as
+# a "belt-and-suspenders" duplicate of the `-b` CLI flag). This chart's
+# ConfigMap drops that duplicate entirely and sources the bootstrap identity
+# solely from a Secret reference at container start — see values.yaml
+# `org1.ca.bootstrapAdminSecretName`'s comment for why dropping the
+# redundant half is safe.
+#
+# Only Org1 gets a CA template in this chart — see README.md "Why only one
+# CA template" (OrgClient-<tenantID> is client-operated by definition,
+# ADR-0012, so its CA does not sit inside this platform chart's deployment
+# boundary; Org3's CA operator is an unratified TBD, gap G-04).
+#
+# PVC/ConfigMap co-mount technique: ca-docker-compose.yaml's own header
+# records the empirical finding that fabric-ca-server writes ALL runtime
+# state relative to the CONFIG FILE'S OWN DIRECTORY, not FABRIC_CA_HOME —
+# fixed there by bind-mounting the config file INSIDE the named volume's own
+# mount path. The direct Kubernetes equivalent of "a read-only single-file
+# bind mount coexisting with sibling files the container writes into the
+# same named volume" is a ConfigMap volume mounted via `subPath` onto one
+# file inside the PVC's mount path (below) — subPath is exactly the
+# mechanism that lets one file come from a ConfigMap while the rest of that
+# directory remains the PVC's own writable content.
+# =============================================================================
+{{- $ca := .Values.org1.ca -}}
+{{- $storageClass := .Values.persistence.storageClassName -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $ca.name }}-config
+  labels:
+    {{- include "fabric-network.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $ca.name }}
+    app.kubernetes.io/component: ca
+data:
+  fabric-ca-server-config.yaml: |
+    # Operative config translated from
+    # fabric-network/network/fabric-ca/ca-org1-config.yaml — see that file
+    # for the full design-authority header (ADR-0005/0009/0019/0021,
+    # combined-identity+TLS-CA alternatives analysis) and this chart's
+    # README.md for what changed in translation.
+    version: {{ $.Values.images.ca.tag | quote }}
+    port: {{ $ca.port }}
+    debug: false
+    crlsizelimit: 512000
+
+    tls:
+      enabled: true
+      certfile:
+      keyfile:
+      clientauth:
+        type: noclientcert
+
+    ca:
+      name: {{ $ca.caName | quote }}
+      keyfile:
+      certfile:
+      chainfile:
+
+    crl:
+      expiry: 24h
+
+    # [deviation, disclosed — see this file's own header] the bootstrap
+    # admin identity is intentionally NOT declared here. The source file's
+    # own registrar attribute grant (hf.Registrar.Attributes scoped to
+    # hris.role/hris.company for ADR-0005's ABAC) still needs to exist
+    # SOMEWHERE for any identity registered after bootstrap to receive those
+    # attributes — that registration-time grant happens via the `-b`-flag
+    # bootstrap identity's OWN implicit full-registrar authority once it
+    # first enrolls (fabric-ca-server behavior, [VERIFY] against the real
+    # 1.5.x binary per ca-org1-config.yaml's own standing VERIFY note), not
+    # via this file's registry.identities block.
+    registry:
+      maxenrollments: -1
+      identities: []
+
+    db:
+      type: sqlite3
+      datasource: fabric-ca-server.db
+      tls:
+        enabled: false
+
+    ldap:
+      enabled: false
+
+    affiliations:
+      org1:
+        - platform
+
+    signing:
+      default:
+        usage:
+          - digital signature
+        expiry: 8760h
+      profiles:
+        ca:
+          usage:
+            - cert sign
+            - crl sign
+          expiry: 131400h
+          caconstraint:
+            isca: true
+            maxpathlen: 0
+        tls:
+          usage:
+            - signing
+            - key encipherment
+            - server auth
+            - client auth
+          expiry: 8760h
+
+    csr:
+      cn: {{ $ca.caName | quote }}
+      keyrequest:
+        algo: ecdsa
+        size: 256
+      names:
+        - C: ID
+          ST: Jakarta
+          O: Org1
+          OU: platform
+      hosts:
+        - localhost
+        - 127.0.0.1
+        - {{ $ca.name }}
+      ca:
+        expiry: 131400h
+        pathlength: 1
+
+    idemix:
+      rhpoolsize: 100
+      nonceexpiration: 15s
+      nonceweeksize: 60
+
+    bccsp:
+      default: SW
+      sw:
+        hash: SHA2
+        security: 256
+
+    cfg:
+      identities:
+        allowremove: false
+      affiliations:
+        allowremove: false
+
+    operations:
+      # [deviation, disclosed] the source file binds this to 127.0.0.1 only
+      # (loopback) — a k8s httpGet probe against the pod IP could not reach
+      # a loopback-bound listener, so this chart does NOT wire a liveness/
+      # readiness probe for the CA (unlike peers/orderers, whose compose-
+      # sourced OPERATIONS_LISTENADDRESS is already 0.0.0.0). Left at the
+      # source file's own loopback-only value rather than silently widened,
+      # since widening it is a config-content decision belonging to
+      # whichever item owns ca-org1-config.yaml (NET-2), not this chart's
+      # translation of it.
+      listenAddress: 127.0.0.1:9443
+      tls:
+        enabled: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $ca.name }}
+  labels:
+    {{- include "fabric-network.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $ca.name }}
+    app.kubernetes.io/component: ca
+spec:
+  clusterIP: None # single replica, stable identity — same reasoning as every peer/orderer Service.
+  selector:
+    app.kubernetes.io/name: {{ $ca.name }}
+  ports:
+    - name: rest
+      port: {{ $ca.port }}
+      targetPort: {{ $ca.port }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $ca.name }}
+  labels:
+    {{- include "fabric-network.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $ca.name }}
+    app.kubernetes.io/component: ca
+spec:
+  serviceName: {{ $ca.name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $ca.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $ca.name }}
+        app.kubernetes.io/component: ca
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: fabric-ca-server
+          image: "{{ .Values.images.ca.repository }}:{{ .Values.images.ca.tag }}"
+          imagePullPolicy: {{ .Values.images.ca.pullPolicy }}
+          env:
+            - name: FABRIC_CA_HOME
+              value: "/etc/hyperledger/fabric-ca-server"
+            - name: FABRIC_CA_SERVER_CA_NAME
+              value: {{ $ca.caName | quote }}
+            # Bootstrap admin credentials — Secret reference only, expanded
+            # by Kubernetes' own $(VAR) substitution into `args` below
+            # BEFORE exec, not by the shell (so this works whether or not
+            # the image's own entrypoint invokes a shell) and never written
+            # to any file this chart authors.
+            - name: CA_BOOTSTRAP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $ca.bootstrapAdminSecretName }}
+                  key: username
+            - name: CA_BOOTSTRAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $ca.bootstrapAdminSecretName }}
+                  key: password
+          command: ["sh", "-c"]
+          args:
+            - >-
+              fabric-ca-server start
+              --config /etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml
+              -b $(CA_BOOTSTRAP_USER):$(CA_BOOTSTRAP_PASSWORD)
+              -d
+          ports:
+            - name: rest
+              containerPort: {{ $ca.port }}
+          resources:
+            {{- toYaml .Values.resources.ca | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /etc/hyperledger/fabric-ca-server
+            - name: config
+              mountPath: /etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml
+              subPath: fabric-ca-server-config.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $ca.name }}-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: {{ .Values.persistence.accessModes | toYaml | nindent 10 }}
+        {{- if $storageClass }}
+        storageClassName: {{ $storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ (default .Values.persistence.caDataSize $ca.dataSize) | quote }}
