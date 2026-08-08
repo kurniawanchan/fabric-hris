@@ -1,0 +1,323 @@
+# Grounding-Gaps Register
+
+> ## ⚠️ MODE: THESIS-AUTHORITATIVE — active as of 2026-08-06
+>
+> This register was written under **PROCEED-WITH-ASSUMPTIONS mode** (declared 2026-07-12): the
+> authoritative product documents (Jira **HLF-6**, Confluence) were unreachable, so the package
+> proceeded on documented `[ASSUMPTION]`s grounded in the two real repos + the pinned Fabric 2.5
+> corpus. **That mode is superseded, not deleted** — its history stays visible below because a gap
+> register that silently rewrites its own past is worthless as an audit trail.
+>
+> **What changed.** On 2026-08-02/03 a ratifying decision — *"the thesis wins"* — was made by
+> **Chandra Kurniawan** as an explicit human decision, recorded in
+> [`prd.md`](../../_bmad-output/planning-artifacts/prds/prd-fabric-hris-2026-08-02/prd.md) (status:
+> **final**) + [`errata-tesis.md`](../../_bmad-output/planning-artifacts/prds/prd-fabric-hris-2026-08-02/errata-tesis.md)
+> + [`rencana-rekonsiliasi.md`](../../_bmad-output/planning-artifacts/prds/prd-fabric-hris-2026-08-02/rencana-rekonsiliasi.md).
+> Two gaps are **closed by explicit human decision** (not by an HLF-6/Confluence artifact — the
+> closing rule below is widened to say so), several others are **reopened, narrowed, or reframed**
+> by the same ratification, and five **new** gaps surfaced while building the companion
+> [`../06-roadmap/dsrm-phase-artifact-map.md`](../06-roadmap/dsrm-phase-artifact-map.md).
+>
+> **Rule (unchanged in spirit, widened in source).** No gap is silently closed. Closing a row
+> requires a real HLF-6/Confluence artifact **or an explicit, recorded human decision** — the
+> ratifying PRD is the second kind, and this file transcribes its closing text **verbatim**, not
+> paraphrased, in Part 0 below.
+>
+> **Register note.** Following the confidentiality framing in `project-context.md`'s AUTHORITY
+> NOTICE (2026-08-06), this rewrite uses the **generic register** — "the platform's core HRIS
+> service", "the platform's Employee microservice" — instead of the real repo/product names that
+> earlier rows in this file used literally. Real-code grounding still exists internally; it is
+> flagged as present without being reproduced. See gap **G-29**.
+
+## Legend
+
+- **Affects** — the downstream deliverable that must be re-opened if the answer differs from the
+  assumption: **ADR** = `05-adr/`, **DATA** = solution data-model (`00-architecture/solution/`),
+  **SEC** = security architecture (`08-security/`), **ARCH** = architecture & agent topology
+  (`00`/`01`), **ROADMAP** = `06-roadmap/`, **RISK** = `10-risk/`.
+- Source of each gap: **SCOPE** = would have come from the (empty) scope report; **SVC** / **CORE**
+  / **FABRIC** = flagged "could-not-determine" in the original discovery report against the
+  platform's internal services (generic register — see this file's header); **PRD** = surfaced
+  or ratified by the 2026-08-02 thesis reconciliation; **MAP** = surfaced while building
+  `dsrm-phase-artifact-map.md` (2026-08-06).
+- Status marker used from here on: **✅ CLOSED** · **🔄 REOPENED** · **⏳ PENDING sponsor decision**
+  · **➖ MOOT** (no longer gates any live artifact) · *(blank)* = still open, unaffected by this wave.
+
+---
+
+## Part 0 — Closed gaps (thesis-authoritative closure, verbatim transcription)
+
+> Per the task that produced this rewrite: these two closures are transcribed **verbatim** from the
+> ratifying PRD sections named — not paraphrased, not summarized — because the instruction closing
+> them is explicit that paraphrase is not acceptable evidence of closure. Markdown tables inside the
+> quoted blocks are reproduced byte-for-byte inside fenced blocks to avoid any silent reformatting.
+
+### G-01 — ✅ CLOSED 2026-08-02
+
+**Original question (G0, 2026-07-12):** What is the prototype's primary business objective and demo
+success metric? **Why it mattered:** sets the whole scope; determines what "done" means for the
+DSRM demonstration/evaluation phases. **Old working assumption (superseded):** *"Objective =
+demonstrate tamper-evident audit + confidentiality-preserving anchoring of employee-PII changes for
+one pilot tenant; metric = verifiable on-chain evidence of a PII change without exposing plaintext."*
+
+**Closing artifact:** `prd.md` §2 (Objektif) + §3 (Kriteria Sukses) — an explicit human decision by
+**Chandra Kurniawan**, 2026-08-02, per `prd.md`'s own annotation on §2: *"Ini adalah ratifikasi PB-4
+/ gap G-01."* §2 supplies the **objective**; §3 supplies the **testable success predicate** the
+original question also asked for ("demo success metric") — both are transcribed below.
+
+**Verbatim transcription — `prd.md` §2 (Objektif):**
+
+```markdown
+## 2. Objektif
+
+> **Ini adalah ratifikasi PB-4 / gap G-01.** Menggantikan `[ASUMSI]` yang sebelumnya tercatat di
+> `agent-suite/11-execution/grounding-gaps.md` baris G-01. Diputuskan oleh Chandra Kurniawan,
+> 2 Agustus 2026, sebagai keputusan manusia yang eksplisit.
+
+### 2.1. Objektif utama
+
+> **Membuktikan bahwa data profil karyawan pada SaaS HRIS tidak pernah dimanipulasi sejak terakhir
+> diotorisasi secara sah — dan bahwa pembuktian itu dapat dilakukan sendiri oleh klien, secara
+> independen, tanpa harus mempercayai penyedia platform.**
+
+### 2.2. Objektif sekunder
+
+Diakui dan dinyatakan, tetapi **tidak diukur** sebagai penentu keberhasilan utama:
+
+| Kode | Objektif sekunder | Pemangku kepentingan |
+|---|---|---|
+| **OS-1** | Postur keamanan dan kelayakan integrasi memenuhi standar forum arsitektur/keamanan internal | Tim internal |
+| **OS-2** | Kemampuan ini menjadi pembeda komersial pada segmen klien enterprise di sektor teregulasi | Produk / komersial |
+| **OS-3** | Model integrasi DSRM + *Compliance-by-Design* dapat digunakan ulang untuk sistem SaaS teregulasi lain | Kontribusi teoretis |
+
+### 2.3. Bukan tujuan (*non-goals*)
+
+- Mengembangkan sistem HRIS secara keseluruhan.
+- *Logging* aktivitas pengguna. Yang dicatat adalah **sidik jari data profil**, bukan jejak aktivitas.
+- Menggantikan enkripsi at-rest yang sudah ada. Lapisan ini **menambah**, tidak menggantikan.
+- Menyimpan data profil itu sendiri di blockchain.
+```
+
+**Verbatim transcription — `prd.md` §3 (Kriteria Sukses; the operational "demo success metric"):**
+
+```markdown
+## 3. Kriteria Sukses
+
+Empat **predikat teruji** (*testable predicate*) — pernyataan yang dapat **digagalkan oleh sebuah
+pengujian**, bukan indikator kinerja. Bentuk ini mengikuti rekomendasi `context/DSRM.md §4`.
+
+| Kode | Predikat | Ambang lulus | Cara menggagalkan | Rujukan tesis |
+|---|---|---|---|---|
+| **P1** ⭐ | Setiap manipulasi langsung di basis data terdeteksi melalui *hash mismatch* | **100% pada kelima section** ⚠️ | **Satu** skenario manipulasi lolos tanpa terdeteksi | Tabel 4.4, SC-A…SC-D |
+| **P2** | Pencatatan integritas tidak mengganggu operasional HRIS | Latensi tulis **< 3 detik pada beban 500 TPS** | Latensi melewati 3 detik pada beban target | BAB I 1.3 |
+| **P3** | Isolasi data antartenant bersifat kriptografis | Akses lintas-tenant **ditolak** oleh MSP | Peer tenant B berhasil membaca record tenant A | Tabel 4.4, SC-E |
+| **P4** | Kewajiban UU PDP dipenuhi secara teknis | Matriks bertingkat **§9** — bukan "5 pasal terpenuhi" | Ada kewajiban dalam matriks yang berstatus **Tidak dapat diklaim** tanpa keterbatasan dinyatakan | §9, matriks terkoreksi |
+
+**P1 adalah metrik utama.** Ia dipilih karena falsifikasinya paling tegas: satu *counterexample*
+sudah cukup meruntuhkan klaim. Untuk artefak keamanan, predikat semacam ini lebih kuat secara
+metodologis daripada tolok ukur rata-rata.
+
+> ⚠️ **P1 menuntut satu skenario uji tambahan.** Tabel 4.4 tesis hanya menguji *hash mismatch* pada
+> **empat** section — PAYROLL (SC-A), PERSONAL (SC-B), EMPLOYMENT (SC-C), EDUCATION (SC-D). SC-E
+> adalah uji isolasi channel, **bukan** uji hash. Section **`ADDITIONAL` belum pernah dimanipulasi
+> dalam pengujian apa pun**, sementara abstrak dan BAB V mengklaim "100% pada lima section".
+>
+> Agar P1 sebagaimana diratifikasi benar-benar terbukti, **satu skenario manipulasi untuk section
+> `ADDITIONAL` harus ditambahkan** (mis. mengubah status perkawinan atau data tanggungan). Lihat
+> `errata-tesis.md` butir **E-2**.
+
+### 3.1. Status angka kinerja — WAJIB DIBACA
+
+> ⚠️ **`[ASUMSI]`** Angka Hyperledger Caliper yang tercetak di tesis — **850,4 TPS** tulis,
+> **1.950,5 TPS** baca, latensi **2,85 detik** (Tabel 4.3, diulang di Abstrak dan BAB V 5.1) —
+> adalah **nilai placeholder, bukan hasil pengukuran.**
+>
+> Penyiapan Hyperledger Caliper v0.5 adalah **tugas build** (lihat Bagian 10.2). Hasil pengukuran
+> yang sebenarnya akan **dituliskan kembali ke dalam tesis** menggantikan angka-angka tersebut.
+>
+> **Yang diratifikasi sebagai kriteria sukses adalah ambang P2 (< 3 detik @ 500 TPS), bukan angka
+> hasilnya.** Ambang inilah yang dipakai untuk menyatakan lulus atau gagal.
+>
+> **Konsekuensi metodologis:** karena evaluasi kinerja kini masuk ke dalam cakupan, pernyataan di
+> `context/DSRM.md §4` bahwa evaluasi kinerja *out of scope* (ditunda di balik gap G-08) **tidak lagi
+> berlaku** dan harus direvisi. Gap **G-08 dibuka kembali**.
+
+### 3.1a. Status matriks UU PDP — WAJIB DIBACA
+
+> ⛔ **Klaim "5 pasal UU PDP terpenuhi" TIDAK BENAR — verifikasi terhadap naskah undang-undang
+> menemukan 4 dari 5 nomor pasal salah kutip.** Lihat **Bagian 9** untuk matriks terkoreksi (12
+> baris, tiga tingkat status) dan `errata-tesis.md` butir **E-14**.
+>
+> **P4 karena itu tidak lagi didefinisikan sebagai "5 pasal terpenuhi".** Ambang yang berlaku:
+> setiap kewajiban dalam matriks Bagian 9 berstatus *Comply*, *Comply sebagian*, atau *Comply
+> dengan catatan* — dan setiap kewajiban berstatus **Tidak dapat diklaim** dinyatakan terbuka
+> sebagai keterbatasan penelitian, bukan disembunyikan.
+
+### 3.2. Celah yang diakui: kerahasiaan belum punya predikat
+
+Keempat predikat di atas menguji **integritas, isolasi, dan kepatuhan**. **Tidak ada satu pun yang
+menguji kerahasiaan** — yaitu bahwa tidak ada PII yang bocor ke ledger dalam bentuk yang dapat
+dibalik.
+
+Paket `agent-suite` memiliki pengujian untuk ini (**ST-1**, prioritas P0: pemindaian ledger penuh
+untuk membuktikan 0 byte PII plaintext atau turunan yang reversibel). Klaim privasi di tesis BAB V
+5.2.2 saat ini berdiri di atas **argumen**, belum di atas bukti pengujian. Lihat **OQ-1** di
+Bagian 12 `prd.md` — ini isu terbuka paling penting dalam dokumen itu (sudah diadopsi — lihat
+`prd.md` §5.2).
+```
+
+**Decision recorded:** objective + P1–P4 ratified by explicit human decision (Chandra Kurniawan,
+2026-08-02), source = the thesis via `prd.md`. **Affects (now settled, downstream still catching
+up):** ARCH, ROADMAP — the artifact this closure feeds is
+[`../06-roadmap/dsrm-phase-artifact-map.md`](../06-roadmap/dsrm-phase-artifact-map.md) §3 (Aktivitas 2).
+
+---
+
+### G-05 — ✅ CLOSED 2026-08-02
+
+**Original question (G0, 2026-07-12):** Which business events must be anchored (add /
+update-personal / update-employment / resign / delete)? **Why it mattered:** determines chaincode
+transaction surface and Kafka/consumer wiring. **Old working assumption (superseded):** *"Anchor the
+personal-data-change approval event first (`EVENT_UPDATE_PERSONAL`), then add/employment/resign."*
+
+**Closing artifact:** `prd.md` §4 (Cakupan Anchoring) — an explicit human decision by **Chandra
+Kurniawan**, 2026-08-02, per `prd.md`'s own annotation: *"Ini adalah ratifikasi PB-5 / gap G-05."*
+This closure **cancels**, not narrows, the event-based surface the old assumption named — the
+STOP-LIST in `project-context.md`'s AUTHORITY NOTICE records `EVENT_UPDATE_PERSONAL` /
+`EVENT_ADD` / `EVENT_UPDATE_EMPLOYMENT` / `EVENT_RESIGN` as superseded.
+
+**Verbatim transcription — `prd.md` §4 (Cakupan Anchoring):**
+
+```markdown
+## 4. Cakupan Anchoring
+
+> **Ini adalah ratifikasi PB-5 / gap G-05.** Menggantikan `[ASUMSI]` di baris G-05, dan
+> **membatalkan** permukaan berbasis event (`EVENT_UPDATE_PERSONAL`, `EVENT_ADD`,
+> `EVENT_UPDATE_EMPLOYMENT`, `EVENT_RESIGN`) yang diasumsikan paket desain sebelumnya.
+
+### 4.1. Unit anchoring: section profil, bukan event
+
+Unit yang dicatat di ledger adalah **section profil**. Setiap section punya siklus pembaruan sendiri
+dan rantai versi sendiri.
+
+| Section | Tabel sumber | Frekuensi perubahan | Sensitivitas |
+|---|---|---|---|
+| **PERSONAL** | `employees` | Jarang | Sangat tinggi |
+| **EMPLOYMENT** | `emp_employment` | Saat promosi / mutasi | Tinggi |
+| **EDUCATION** | `emp_education` | Saat pendidikan baru selesai | Sedang |
+| **ADDITIONAL** | `emp_additional` | Saat status perkawinan / tanggungan berubah | Tinggi |
+| **PAYROLL** | `emp_payroll` | Saat penyesuaian gaji / ganti rekening | **Paling kritis** |
+
+### 4.2. Pemicu pencatatan
+
+Pencatatan dipicu **setiap kali sebuah section dibuat atau diperbarui**. Rantai `PrevHash` disusun
+**per section per karyawan** — bukan satu rantai untuk seluruh profil.
+
+### 4.3. Alasan granularitas per section
+
+1. **Efisiensi** — pembaruan section `PAYROLL` tidak memicu pencatatan ulang section `EDUCATION`
+   yang tidak berubah. Pada skala ribuan karyawan, beban on-chain jauh lebih ringan dibanding hash
+   profil monolitik.
+2. **Presisi forensik** — auditor dapat menunjuk **section mana** yang dimanipulasi tanpa memeriksa
+   seluruh profil.
+
+*(Rujukan: tesis BAB IV 4.2.3 dan pembahasan 4.4.1.)*
+```
+
+**Decision recorded:** anchoring unit + section taxonomy ratified by explicit human decision
+(Chandra Kurniawan, 2026-08-02), source = the thesis via `prd.md`, cancelling the event-based
+surface entirely rather than merely reordering it. **Note on the table's table-name column:** the
+row above names the five relational tables exactly as the ratifying PRD does; per the generic
+register (this file's own header), no further repo/table names beyond what the PRD itself already
+publishes in its generic register are added here. **Affects:** DATA, ARCH — feeds
+`dsrm-phase-artifact-map.md` §3 (Aktivitas 2) and is a direct input to ADR-0011/0013/0014 (not yet
+authored, `rencana-rekonsiliasi.md` Gelombang 3).
+
+---
+
+## Part 1 — Requirement-layer gaps (only HLF-6 / Confluence, or an explicit human decision, can resolve)
+
+> **G-01 and G-05 are closed — see Part 0.** They are removed from the table below to avoid a stale
+> duplicate; do not re-add them here.
+
+| ID | Open question | Why it matters | Working assumption as of G0 (historical) | Status update (2026-08-06) | Affects |
+|----|----------------|----------------|--------------------------------------|-------------|---------|
+| **G-02** | Which specific PII fields go on-chain (as commitments) vs stay off-chain only? | Decides the data-model boundary and the entire confidentiality posture. | No sensitive PII plaintext on-chain; anchor only salted hashes/commitments of change events; authoritative PII stays in the existing AES-encrypted relational store. | **Re-scoped, not closed.** The anchoring unit is now a **profile section** (PERSONAL/EMPLOYMENT/EDUCATION/ADDITIONAL/PAYROLL), not a change-event delta: `DataHash = SHA-256(salt‖JCS(section))`, salt off-chain only, no plaintext or reversible derivative on-chain `[prd: §4, §5.2, INV-1]`. Still open pending **ADR-0011** (not yet authored, `rencana-rekonsiliasi.md` Gelombang 3 #13). | DATA, SEC, ADR |
+| **G-03** | Multi-tenancy model on Fabric: channel-per-tenant, or single channel + PDC per org subset? | Hard ledger isolation vs shared-ledger field confidentiality; data-residency implications. | Single channel for the prototype + PDC for field-level confidentiality; channel-per-tenant deferred as a scale option. | **Ratified as channel-per-tenant** — the old "deferred scale option" is now the baseline, and PDC is retired entirely (STOP-LIST) `[prd: §5.1, INV-5]`. Pending **ADR-0013** (not yet authored, Gelombang 3 #15). | ARCH, ADR, DATA |
+| **G-04** | Which organizations form the Fabric consortium? | Defines MSPs, endorsement policies, and who can see/endorse PII. | Two orgs for the prototype: an HR org and an Audit org, both operated by the SaaS vendor; regulator/employee orgs deferred. | **Ratified as three organizations**: the platform (2 peer + 3 orderer Raft), an **enterprise-client-operated** peer, and a **read-only auditor** peer `[prd: §5.1]`. The "honest-but-curious, vendor-operates-everything" framing is retired — the client-operated peer is now load-bearing for predicate **P1** itself (`errata: E-11` flags this must be demonstrated, not assumed). Pending **ADR-0012** (not yet authored, Gelombang 3 #14). | ARCH, SEC, ADR |
+| **G-06** | Retention / right-to-be-forgotten obligations and their regulatory basis? | Drives the erasure design and audit-evidence retention. | Erasure required; use Fabric v2.5 `PurgePrivateData` leaving only the immutable hash as evidence; retention window TBD; regulatory basis unconfirmed. | **Regulatory basis is now a verified fact**, not an assumption: Indonesia's UU PDP No. 27/2022, cross-checked against the primary legal text by 7 independent readers `[prd: §9.5]`. But the ratified erasure mechanism (delete field + destroy the document-encryption key + destroy salt + `employeeKey_i` `[prd: §5.2, FR-25..29]`) carries **no PDC at all** (superseded) and still does **not** satisfy the Article 42 automatic-retention obligation — see new gap **G-26**. | SEC, DATA, ADR |
+| **G-07** | Is ZKP / Idemix actually required, and for which user story? | Anonymous-credential design is heavyweight; only build if a story needs minimal disclosure. | ZKP is an evaluation-phase exploration (e.g. prove "active employee / salary band X" without identity), not a core prototype requirement. | **Untouched by this reconciliation wave.** The thesis's own further-work section names the same exploration — proving a salary figure is in-range without disclosing it — as future work `[thesis: BAB V §5.2.1]`, consistent with the existing assumption. Still open. | SEC, ADR, ROADMAP |
+| **G-08** | Non-functional targets: employee/tenant volume, tx throughput, latency budgets? | Sizes state-DB choice, block params, and the performance test plan. | Prototype scale = 1 pilot tenant, low tx volume; defer throughput tuning; default LevelDB unless rich queries are needed. | **🔄 REOPENED 2026-08-02.** Performance evaluation is **in scope**, not deferred: predicate **P2** (write latency < 3s @ 500 TPS) is a ratified success criterion, and a Hyperledger Caliper v0.5 benchmark is now a **build task**, not an optional stretch `[prd: §3.1]`. The published thesis numbers (850.4/1,950.5 TPS, 2.85s) are **placeholders**, not measurements, and must not be cited as results until the harness actually runs. State DB stays **LevelDB** (unaffected). `context/DSRM.md §4` has been updated to reflect this reopening (this task). | ARCH, ROADMAP, RISK |
+| **G-09** | Does Fabric become source-of-truth for any field, or is it a pure audit/anchor overlay? | Fundamentally different integration and failure-mode design. | Fabric is an audit/anchor overlay; the relational store remains system-of-record. | **Still holds as the ratified position** — an explicit non-goal is "menyimpan data profil itu sendiri di blockchain" `[prd: §2.3]`. *Which* relational engine is authoritative is now a separate, narrower question owned by sponsor decision **S-2** (`dsrm-phase-artifact-map.md` §9) — not this gap. | ARCH, ADR, DATA |
+| **G-10** | Which service hosts the Fabric gateway client? | Determines language/SDK, deployment unit, and where the anchor hook lives. | A new thin Go anchor-service consuming an `employee_info` Kafka topic. | **✅ CLOSED 2026-08-08 by ADR-0022.** Superseded in kind twice over: `ADR-0014` first retired the standalone anchor-service/Kafka-consumer shape in favor of in-band recording, reopening this exact question of *which* in-band component hosts the client; `ADR-0022` now names it — a **new, standalone Go bridge service** (sibling to EMS, embedded in neither talenta-core nor EMS), called synchronously from talenta-core's real write-path commit sites via the same convention `services/ems/BaseEmsService.php` already uses in production (Guzzle + `X-Api-Key`). Grounded in a live-repo re-check (`context/REAL-INTEGRATION-TRIGGER-FLOW.md`, 2026-08-07) that also found the mapping is **4 real commit sites, not 5** (PERSONAL/PAYROLL share one) and that PAYROLL has 3 further write surfaces this decision does not cover — carried forward as its own disclosed gap, not silently folded into this closure. | ARCH, ADR |
+| **G-11** | How do HRIS roles map to Fabric MSP OUs / chaincode attributes? | Access-control correctness; mismatch = over- or under-exposure of PII. | Map HRIS roles to X.509 OUs/attributes read via CID in chaincode, mirroring existing RBAC exclusions. | **Unaffected by this reconciliation wave; still open.** `FR-13` (`prd.md` §7) narrows *who* may call verification (employee / HR manager / auditor) but does not resolve the underlying OU/attribute mapping. | SEC, ADR |
+| **G-12** | Consent model and data-subject-rights workflows? | Privacy-by-Design compliance surface. | Reuse the existing employee-initiated change-request approval workflow as the consent/rectification seam. | Unaffected by this reconciliation wave; still open. Cross-ref new gap **G-25** (DPIA) which will need this seam described concretely. | SEC, DATA |
+| **G-13** | Deployment target for the Fabric network? | DevOps agent scope, network topology, HSM/TLS provisioning. | Prototype runs on the same cloud K8s as the existing HRIS services; production topology deferred. | Unaffected by this reconciliation wave; still open. | ROADMAP, ARCH |
+| **G-14** | Concrete acceptance criteria / approval definition for each gate G0–G9? | Without them the orchestrator cannot decide gate pass/fail objectively. | Use the gate table in `agent-suite/README.md` as provisional exit criteria. | **Elevated to the crux of the whole reconciliation.** Gates **G8 and G9 are VOID** `[prd: §11.1]`, and the proposed fix is a **G8a/G8b split** that retires the "0 lines of prototype code" rule for G8b only `[rencana-rekonsiliasi.md §1.3]`. This is sponsor decision **S-1** (`dsrm-phase-artifact-map.md` §9) — the single highest-priority open item in this register; every other Part-1 "pending ADR" row is downstream of it. | ROADMAP, ARCH |
+| **G-15** | Does Fabric key management integrate with the existing app-level PII-encryption key versioning, or is it separate? | Key-lifecycle design; avoids two divergent key models. | Fabric MSP/HSM signing keys are separate from the app-level AES PII keys; the two models coexist. | **Extended, not superseded.** The ratified design adds a third/fourth key domain — `pseudonymKey` → `employeeKey_i` (identity pseudonymization) — alongside the existing MSP/TLS and document-encryption-key domains, with an explicit rule that no domain may be derived from another `[prd: §5.2]`. Pending **ADR-0019** (amends ADR-0009, not yet authored, Gelombang 3 #18). | SEC, ADR |
+
+## Part 2 — Repo-level gaps (flagged "could-not-determine" by the original code readers)
+
+> **Generic register note.** These rows originally cited literal repository/table paths. Per the
+> 2026-08-06 confidentiality register (this file's header), those literal citations are replaced
+> below with generic descriptors; the underlying grounding was real and was consulted internally,
+> it is simply not reproduced verbatim on this page. See gap **G-29**.
+
+| ID | Open question | Why it matters | Working assumption as of G0 (historical) | Status update (2026-08-06) | Affects |
+|----|----------------|----------------|--------------------------------------|-------------|---------|
+| **G-16** | Who owns/runs DDL on the shared operational relational database? | Determines whether the prototype may add columns/tables or must stay read-only against the shared schema. | The prototype does **not** alter the shared schema; any new state lives on-ledger or off-chain elsewhere. | Unaffected by this reconciliation wave; still open. Sponsor decision **S-2** (which relational engine is authoritative) is adjacent but distinct — see G-09. | DATA, ARCH, RISK |
+| **G-17** | Is the PII inventory (which fields exist across the five profile sections) complete? | PII inventory completeness; a missed sensitive column = a missed control. | The PII inventory in the (stale) knowledge graph is representative but non-exhaustive; treat any unlisted field as potentially sensitive until confirmed. | Unaffected by this reconciliation wave; still open. Directly feeds gap **G-25** (DPIA §2 PII data-map). | DATA, SEC |
+| **G-18** | Is the API-gateway identity-header trust boundary (tenant/user identity injected by the gateway) enforced end-to-end? | If gateway headers can be spoofed, the whole tenant-isolation story is undermined. | The gateway strips and re-injects trust headers so downstream trust is valid; to be verified before security sign-off. | **Still OPEN** — `prd.md` Lampiran A confirms this remains a blocking pre-build gate (**PB-1**) `[prd: Lampiran A]`. | SEC, ARCH |
+| **G-19** | Do other event producers (outside the profile-write path) carry sensitive PII that could leak into an anchor surface? | If they do, they are additional anchor/leak surfaces. | Only the identity/org-metadata event stream is in the anchor scope; other producers warrant review before sign-off. | ✅ **MOOT — closed 2026-08-06 (S-4).** The event-stream anchor path this gap was written against no longer exists — recording is in-band, not event-driven (`prd.md` §11.3 ADR-0014). Human decision, sponsor session 2026-08-06. | SEC, DATA |
+| **G-20** | Is the external Employee microservice proven to be a consumer of the identity/org-metadata event topic? | Confirms a real integration binding the *old* design assumed. | The Employee microservice is a consumer of that topic, consistent with both systems' code. | **➖ MOOT for the Fabric anchor design.** The event-topic consumption path this gap grounds is superseded by in-band recording (ADR-0014, not yet authored). Retained only as historical/informational — it no longer gates any live Fabric artifact. | ARCH (informational only) |
+| **G-21** | Per-tenant PII-encryption rollout phase (partial rollout; plaintext may still be authoritative for non-pilot tenants)? | The prototype must not assume plaintext columns are empty or that encrypted columns are populated. | Treat plaintext as authoritative and encrypted columns as possibly-empty for non-pilot tenants; anchor logic reads through the app layer, not raw columns. | ✅ **MOOT — closed 2026-08-06 (S-4).** Grouped with G-19/G-23; the read-back concern this gap's scenario depended on dissolved under in-band recording. Human decision, sponsor session 2026-08-06. | DATA, SEC, RISK |
+| **G-22** | Prod app-cache backend and runtime language/DB versions for the core HRIS service? | Minor for the Fabric design; affects any read-through/caching assumption. | Not load-bearing for the ledger design; no dependency taken on the cache backend. | Unaffected; still informational / none. | (none / informational) |
+
+---
+
+## Part 3 — Gaps surfaced during design (G3–G5)
+
+| ID | Open question | Why it matters | Working assumption as of G3–G5 (historical) | Status update (2026-08-06) | Affects |
+|----|----------------|----------------|--------------------------------------|-------------|---------|
+| **G-23** | How does the component computing the commitment obtain the approved PII delta, given the old event stream carried metadata only (G-19)? | Without the changed values the commitment can't be built; any read-back is a new PII-touching path + trust/permission surface. | An anchor-service does an authenticated app-layer read-back keyed by `(tenant, employee, event-time)`. | ✅ **DISSOLVED — closed 2026-08-06 (S-4).** Human decision, sponsor session 2026-08-06, confirming `rencana-rekonsiliasi.md` §2's recommendation. No anchor-service, no Kafka, no cross-service read-back surface exists to secure. **Preserved nuance, not a reopening:** in-band recording (ADR-0014) still reads the current section value from the operational store, in-process, to compute `DataHash` `[prd: §5.2]` — this is a trivially-true fact of the write path's own construction, not the cross-service trust boundary this gap was originally about. No further gap or ADR needed for it. | DATA, ARCH, SEC |
+| **G-24** | What canonicalization does the commitment input use so writer and verifier agree byte-exact? | The verify recompute-and-compare contract is only deterministic if both sides serialize identically. | RFC 8785 JCS over the new changed-field values (not a delta); scheme selected. | ✅ **CLOSED 2026-08-07 (PB-3).** Pinned to `github.com/cyberphone/json-canonicalization@v0.0.0-20241213102144-19d51d7fe467` (RFC 8785 co-author's reference implementation). Verified, not asserted: `fabric-network/tools/jcsverify/main.go` ran all 6 of the library's own official RFC 8785 test vectors through `Transform()` and confirmed byte-exact match against expected output, plus idempotency on re-canonicalization. Closes test **U-4**. | DATA, SEC, tests |
+
+---
+
+## Part 4 — New gaps (surfaced 2026-08-06, building `dsrm-phase-artifact-map.md`)
+
+| ID | Open question | Why it matters | Current working position | Affects |
+|----|----------------|----------------|---------------------------|---------|
+| **G-25** | The ratified artifact triggers a **DPIA obligation** (UU PDP Article 34) — through at least four paragraph-(2) doors simultaneously, including "use of new technology" (the thesis's own novelty claim) — but no DPIA has been produced. | A DPIA is a compliance *and* a Privacy-by-Design instrument; without it, predicate **P4**'s compliance matrix row 10 stays "cannot-claim" `[prd: §9.2 row 10, §9.3]`. | `[ASSUMPTION]` A DPIA template already exists (`../skills/privacy-by-design/assets/dpia-template.md`) and has never been instantiated for this artifact. It cannot be filled in meaningfully until ADR-0011/0015/0017 (§5.2's key hierarchy + the relational tier) are authored, since several DPIA fields (on-chain treatment, key custody) depend on them. | SEC, ADR, RISK |
+| **G-26** | The ratified erasure mechanism (crypto-shred) does **not** satisfy the UU PDP Article 42 retention obligation — that obligation is **automatic**, time/purpose-triggered, while crypto-shred is **request-triggered** (Article 43(1)(c)); the append-only ledger never stops storing. | Predicate **P4** row 11 is explicitly "cannot-claim" `[prd: §9.2 row 11, §9.3]`; a concrete question the ratifying source itself poses: an employee resigns in 2026, fifteen years later their record is still on the ledger — on what basis? | `[ASSUMPTION]` No retention policy exists yet. This is distinct from G-06 (regulatory basis is now settled) — this gap is specifically about the *missing automatic-cessation mechanism*, which crypto-shred structurally cannot provide on its own. | SEC, DATA, ADR |
+| **G-27** | The legal role of the platform org vs. the enterprise-client org under UU PDP (data **Controller** vs. **Processor**, Article 52's closed list of seven articles binding only Processors) has not been determined; relatedly, replicating the ledger to the read-only auditor org is literally a data "transfer" under the Explanatory Notes to Article 16(1)(e), with no stated legal basis. | This is not a redactional detail — it determines **which** articles in the compliance matrix (`prd.md` §9.2) may be claimed at all, and **by whom**. If the platform org is a Processor, several obligations the thesis attributes to it (Articles 30/42/43/44/45/46/47) may in fact bind the client org instead. | `[ASSUMPTION]` Neither role has been legally determined; `prd.md` §9.4 raises this as an open legal question, not yet an ADR-level decision. | SEC, ADR, RISK |
+| **G-28** | Independent verification of the InfoSec-anonymized thesis revision's actual current wording (whether errata **E-4**, **E-9**, and others are genuinely remediated in that revision, as asserted by the task that produced this register rewrite) could not be performed in this tooling environment. | `dsrm-phase-artifact-map.md` and this register both cite `[thesis: BAB … §…]` against `source-thesis-extract.txt` — a text extraction of the **pre-InfoSec-revision** thesis (the same version `errata-tesis.md` audited) — because the available file-reading tool explicitly rejects the binary `.docx` of the InfoSec revision. The claim that E-4 was "fixed by removing the promise, not by adding the missing report" is therefore **unverified by this register**, not confirmed. | `[ASSUMPTION]` Close this gap only when a text extraction (or equivalent machine-readable form) of the InfoSec revision is dropped into `sources/` (see below) and the specific errata items can be re-checked against it. | ROADMAP (Communication artifacts), RISK |
+| **G-29** | How is internal grounding evidence (real repository paths, table/column names consulted to verify the SC-A…SC-D + `ADDITIONAL` demonstration mapping) preserved as an audit trail without violating the generic register mandated 2026-08-06? | Without a resolution, rigor quietly erodes every time a new generic-register document is written: a real fact was checked, but the citation that would let a future reviewer re-check it is gone. | `[ASSUMPTION]` No format decided yet. Candidate: a separate, access-restricted internal grounding appendix (not published in the generic-register deliverables) that the generic documents point to by reference (e.g. "internal grounding ref: GR-2026-08-06-01") without reproducing the real names inline. This is a process decision, not a technical one — flagging it here rather than inventing a format unilaterally. | DATA, SEC, ROADMAP |
+| **G-31** | `requiredStringArgs` (`record_profile_section.go`) only checks that `employeeID`/`updatedBy`/`dataHash`/`prevHash` are non-empty — it never checks they are actually SHAPED like the pseudonyms/digests the design requires (64-hex-char HMAC-SHA256 output for identifiers, `"sha256:<64 hex>"` for hashes, per `api-contracts.md`'s own stated "digest format" convention). Found by `QA-5`'s `ST-1` full-ledger scan (2026-08-07): `pilscan` (`fabric-network/tools/pilscan`) parsed every block on `tenant-tenant01` (230 blocks, 36,489 tx-args, 3,628 world-state writes, 3,622 events) and found **31,895 identifier-shape violations** — `employeeID`/`updatedBy` values that are raw, human-readable test-fixture strings (e.g. `"rec3gatewaytest0000...0001"`, `"bench-bulkbatch-w0-3-..."`) instead of HMAC-SHA256 pseudonyms, because several OTHER test suites this session (`REC-3`, `REC-7`, `INT-2`, `ST-5`, `QA-4`'s Caliper benchmark) called `RecordProfileSection` directly with hand-rolled literals for testing convenience, bypassing `writepaths.Hooks.anchor()`'s real pseudonymization pipeline entirely — and the chaincode accepted every one of them without complaint. | This is a real defense-in-depth gap, not merely a test-hygiene issue: nothing at the chaincode layer stops a genuine bug, a future write path, or a misconfigured integration from submitting a real, directly-identifying string as `employeeID`/`updatedBy` and having it persist **permanently and irreversibly** on an append-only ledger. **Important, independently triple-corroborated nuance: zero actual PII was found** — a fixture-string dictionary check, a raw-block PII-pattern backstop (email/SSN/name-shaped regexes), and the `ST-1` verifier's own separate independent pattern search all returned zero hits. The failure is specifically about missing shape ENFORCEMENT, not an actual leak of real personal data. | `[ASSUMPTION]` No working assumption existed before this finding (the design's threat model implicitly trusted every caller to always compute proper pseudonyms). Candidate closing paths, neither taken here: (a) add a chaincode-level regex/shape check on `employeeID`/`updatedBy` (`^[0-9a-f]{64}$`) and `dataHash`/`prevHash` (`^sha256:[0-9a-f]{64}$` or empty) as defense-in-depth, rejecting malformed values before they ever reach `PutState`; (b) accept the current caller-trust model as a documented, ratified design boundary via a superseding note (not silently). Either way, the 31,895 already-committed non-conforming records on the live demo ledger are permanent and cannot be retroactively fixed — future work only prevents recurrence. | SEC, CC, tests |
+| **G-32** | `QA-5`'s `ST-3` (cert revocation) surfaced two independent structural findings, not just "the CA containers happen to be down": (a) `NET-2`'s Fabric-CA-issued PKI root certs are **not actually the live network's trust anchor** — their subject/issuer DNs are disjoint from what `configtx.yaml` references, meaning an identity enrolled via that CA today would not even be trusted by the live channels, independent of revocation; (b) **no CRL distribution mechanism exists anywhere in this repo** (no `crls/` artifact, no channel MSP config-update path for revocation) — so even a correctly-trusted, correctly-revoked identity would have no live enforcement point to be rejected at. | `SEC` T2 ("stolen X.509 signing key → submit/endorse as an org, mitigated by cert lifecycle") is currently **unmitigated in practice**, not merely untested — a stolen/compromised signing key for any live identity cannot actually be revoked-and-enforced against with what exists in this repo today, regardless of CA container health. | `[ASSUMPTION]` No working assumption existed — `T2`'s "mitigated by cert lifecycle" claim (`security-architecture.md`) was carried forward without ever being live-verified until this finding. Closing this requires: reconciling which PKI is actually the live trust anchor (cryptogen vs. Fabric-CA — this network appears to mix both, per NET-1/NET-2's own history), then building and testing an actual CRL (or OCSP, or channel-MSP-revocation-list-update) enforcement path end-to-end. Not attempted here — this is a real gap for `fabric-architect`/`security-architect`, not something `QA-5` can close by itself. | SEC, ADR |
+| **G-30** | ADR-0005 ratifies attribute-based access control (chaincode CID `GetAttributeValue`/`AssertAttributeValue` reading enrolled `hris.role`/`hris.company` X.509 attributes, Option A) and explicitly **rejects** coarse org-level-only identity as Option B ("cannot enforce role-level ABAC ... over-exposes PII"). The chaincode actually built and shipped this session (`fabric-network/chaincode/employeeprofilerecord/chaincode/identity.go`) implements exactly the rejected Option B — `cid.GetMSPID`/`cid.GetID` plus a hardcoded per-org MSP allow-list, zero `GetAttributeValue` calls anywhere in the non-vendor source (confirmed by grep, `QA-1` audit 2026-08-07). | This is not a cosmetic drift: ADR-0005's own stated cost of Option B is real and currently live — **any authenticated member of an org's MSP can submit/evaluate for that org, regardless of HRIS role**; the employee/finance read-exclusion and the consultant company-scoping ADR-0005 names as the whole point of Option A are not enforced at the chaincode layer today. | No working assumption existed before this finding — the divergence was only surfaced by `QA-1`'s fresh unit-coverage audit (2026-08-07) tracing U-5's claimed `GetAttributeValue` mechanism back to the actual shipped code. | ⏳ **OPEN, newly surfaced 2026-08-07.** Disclosed at `ADR-0005`'s own file (technical-correction-style note, immutability of the Decision itself preserved) rather than silently reinterpreted. Two closing paths, neither taken here: (a) a new ADR superseding ADR-0005 that formally accepts org-level-only identity for this prototype's scope, with its own trade-off writeup, or (b) implement the enrolled-attribute ABAC ADR-0005 actually specifies. Blocks nothing already built from working, but should gate `QA-5` `ST-2`'s broader authz posture review and any claim that this prototype enforces HRIS-role-level least privilege. | SEC, ADR, CC |
+| **G-33** | `ARCHITECTURE-SPINE.md`'s AD-3 states HTTP status is pure transport (`2xx`/`4xx`/`5xx`) while the body's `status` field (`committed`/`partial_failure`/`rejected`/`error`) carries the business outcome — but its own decision table maps BOTH `[auth]` rejections (a credential fault, `4xx`-shaped) AND `Hooks`' untyped `Store.SaveSection` failures (a "bridge/dependency fault", `5xx`-shaped) to the SAME body string, `"error"`. Found while implementing Story 1.2 Task 7 (`integration-bridge`'s `[respond]` stage, 2026-08-08): `classify()` (Task 6) deliberately erases which of the two produced `"error"` by design (`[auth]`'s own Task 3 text explicitly forbids special-casing it to bypass `[map-error]`), so by the time `[respond]` runs there is no information left to pick `4xx` vs `5xx` for that one status string. | Not a correctness bug in anything shipped — `[respond]` still emits a defensible, internally-consistent HTTP status per body-`status` string (this story maps `"error"` to `500`, favoring the "bridge/dependency fault" half of AD-3's own wording, since the alternative — `401`-shaping a SaveSection failure — would misdirect a caller). But a future strict-REST consumer of this API that infers meaning from the numeric HTTP code alone (rather than the documented body field) will occasionally see `500` for what was actually a credential mistake on its own side. | `[ASSUMPTION]` No closing path attempted here. Two candidates, neither taken: (a) accept the current collapse as ratified (superseding note on AD-3 stating the body `status` field, not the HTTP code, is the sole outcome channel — which is already AD-3's stated intent, just not stated as *also* covering this specific ambiguity); (b) thread a finer-grained origin tag through the Stage Contract (Task 2's `bridgectx`) so `[respond]` can pick `401` vs `500` for `"error"` without `classify()` losing the auth/business distinction it was designed to erase. | ARCH, ADR |
+| **G-34** | Nothing in `integration-bridge`'s API surface lets an external caller (talenta-core, or a black-box integration test acting as one) verify that a committed write's `ipfsCIDs` actually landed on the ledger. Found while writing Story 1.2 Task 9's `//go:build integration` test (2026-08-08): confirming this requires calling `gatewayclient.EvaluateGetProfileHistory(ctx, tenantID, employeeID, profileSection)`, but its `employeeID` argument is the on-chain HMAC pseudonym computed from `employeeKey_i` inside the bridge process's own in-memory `keystore.EmployeeKeyStore` — never returned in any response (`recordID` is a different, txID-derived value) — by design, since hiding that mapping from callers is the entire point of the pseudonymization scheme. | Not a defect in the design (the pseudonym's opacity to callers is intentional and load-bearing for the confidentiality property this whole prototype is demonstrating) — but it means the FR-30/FR-31 "document → CID on ledger" property currently has **no automated end-to-end proof from outside the bridge's process boundary**, only from Story 1.2's own unit tests exercising `doAnchor`'s call to `h.IPFS.EncryptAndAdd` directly. The `//go:build integration` test added this story (`personal_route_integration_test.go`) only proves the document-carrying request path commits without panicking, not that the CID is actually retrievable. | `[ASSUMPTION]` No closing path attempted here. Candidate: a test-only diagnostic route or an in-process (not subprocess) integration-test harness that shares the bridge's own `Hooks`/`keystore` instances, so the test can call `Keys.GetOrCreateEmployeeKey` itself to derive the same pseudonym and then query `GetProfileHistory` directly — deliberately not built here since it would mean the integration test no longer exercises the real binary as an external caller would. | tests, ARCH |
+| **G-35** | No test anywhere proves `integration-bridge/main.go`'s `buildMux` wires each of the 5 routes to its *correct, distinct* `Hooks` method (e.g. that the PAYROLL registration really passes `hooks.UpdatePayrollBankAccount`, not an accidental copy-paste of `hooks.UpdatePersonalData`). Found during Story 1.6's code review (2026-08-09): `dispatch()`'s call signature never includes `ProfileSection`, so which real Fabric write-path executes is determined *solely* by which Go method value `buildMux` assigned to `routeConfig.Dispatch` for that route — and every existing test either (a) checks only that a path doesn't 404 (`mux_test.go`'s `TestBuildMux_*` tests, which can't distinguish "correctly wired" from "two routes aliased to the same handler by mistake"), or (b) proves the shared `registerProfileSectionRoute` mechanism itself doesn't cross-dispatch using its own hand-built stub closures (`TestRegisterProfileSectionRoute_TwoRoutesOnOneMux_NeverCrossDispatch`), never touching the real `buildMux` at all. | Not a defect in anything shipped — `buildMux`'s 5 lines were manually re-verified correct against `write-path-integration/writepaths/writepaths.go`'s real method set during this review — but a future copy-paste error in `buildMux` (5 near-identical registration blocks stacked on top of each other) would not be caught by any test in this codebase, including the ones this same story's AC#3 specifically asked for. | `[ASSUMPTION]` No closing path attempted here. Closing this properly requires either a full stub implementation of all 4 `writepaths.Hooks` store interfaces (so a request can safely reach `Dispatch` without a nil-pointer panic on `Store`/`Keys`/`Salts`/`Gateway`, unlike the current `stubHooksForMuxTest()`) or a live-network integration test that reads back which Fabric write-path actually executed — deliberately not built here, same reasoning as G-34's "would mean the test no longer exercises the real binary/wiring as shipped" trade-off. | tests, ARCH |
+| **G-36** | `integration-bridge`'s live-network integration test for PAYROLL's byte-precision claim (`TestIntegration_PayrollRoute_CommitsWithLargeBankAccountNumber`) only asserts `status: "committed"` and a non-empty `recordID` — it does not, and structurally cannot without hitting the same pseudonym-opacity problem G-34 already documents, confirm that the 19-digit bank-account number actually survived the real commit byte-for-byte rather than being silently corrupted somewhere downstream of the bridge (e.g. in the chaincode's own JCS/digest step). Found during Story 1.6's code review (2026-08-09). | The byte-precision guarantee IS proven at the unit level (`TestRegisterProfileSectionRoute_PayrollRoute_LargeBankAccountNumber_PreservedByteForByte` confirms the digit string reaches the injected `Dispatch` stand-in unchanged) — this gap is specifically about the live-network half of AC#1, which the story's own doc comment slightly overclaims ("proves AC#1, live-network half") relative to what it actually checks. | `[ASSUMPTION]` No closing path attempted here. Same structural family as G-34 — a real fix needs either an authenticated read-back path (which doesn't exist for the reasons G-34 documents) or trusting the unit-level proof as sufficient and rewording the integration test's own doc comment to not overclaim — the latter was applied during this review (see Story 1.6's Review Findings). | tests, ARCH |
+
+---
+
+## Closing procedure
+
+When a real artifact arrives, append a row to the log below and update the affected deliverable.
+
+| Date | Gap ID(s) closed | Source artifact | Decision recorded |
+|------|------------------|-----------------|-------------------|
+| 2026-08-02 | **G-01** | `prd.md` §2 (Objektif) + §3 (Kriteria Sukses) | Explicit human decision, Chandra Kurniawan — objective + testable predicates P1–P4 ratified; PB-4 closed. Verbatim transcription in Part 0 above. |
+| 2026-08-02 | **G-05** | `prd.md` §4 (Cakupan Anchoring) | Explicit human decision, Chandra Kurniawan — anchoring unit = profile section (not event); event-based surface (`EVENT_UPDATE_PERSONAL` et al.) cancelled; PB-5 closed. Verbatim transcription in Part 0 above. |
+| 2026-08-02 | **G-08** (reopened, not closed) | `prd.md` §3.1 | Performance evaluation re-entered scope on the strength of ratified predicate **P2**; Caliper numbers flagged as placeholder pending a real benchmark run. `context/DSRM.md §4` updated to match (2026-08-06). |
+| 2026-08-02 | **OQ-1 / E-1** (thesis-side open question, tracked because it forced §5.2 of the PRD) | `prd.md` §5.2 | Explicit human decision, Chandra Kurniawan — salted `DataHash` + HMAC-keyed pseudonymous identifiers (two-tier `pseudonymKey → employeeKey_i`) adopted, replacing the thesis's unsalted/unkeyed hash. Not a `G-##` row in this register (it is a thesis-internal defect, not a requirement-layer unknown), recorded here for completeness of the audit trail. |
+
+**Total gap IDs ever registered: 29** (G-01..G-29). **Closed: 2** (G-01, G-05). **Open: 27**, of
+which: **reopened with new scope: 1** (G-08) · **pending an undecided sponsor call: 3** (G-19,
+G-21, G-23 — grouped under **S-4**, see `dsrm-phase-artifact-map.md` §9) · **moot for the current
+design: 1** (G-20) · **new this wave: 5** (G-25..G-29, Part 4) · **open, unaffected or narrowed by
+this wave, no special status: 17** (G-02, G-03, G-04, G-06, G-07, G-09, G-10, G-11, G-12, G-13,
+G-14, G-15 in Part 1; G-16, G-17, G-18, G-22 in Part 2; G-24 in Part 3). *(1 + 3 + 1 + 5 + 17 = 27,
+reconciling against the 27 open total above.)*
