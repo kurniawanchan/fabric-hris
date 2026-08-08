@@ -27,6 +27,7 @@ evidence-linked record of what was built, what passed, and what didn't.
 | [`fabric-network/`](fabric-network/) | Network topology, the chaincode (smart contract), and the Go tools that drive real Fabric bring-up/deployment |
 | [`write-path-integration/`](write-path-integration/) | Off-chain digest/identity/erasure logic, the Fabric Gateway client, and the write-path hooks (Go workspace, 4 modules) |
 | [`ipfs-cluster/`](ipfs-cluster/) | Dev-grade 2-node IPFS private swarm for encrypted supporting documents |
+| [`integration-bridge/`](integration-bridge/) | Standalone Go service hosting the Fabric Gateway client for the HRIS platform's real write paths — closes grounding gap G-10 (ADR-0022). One HTTP route per profile section (`PERSONAL`/`EMPLOYMENT`/`EDUCATION`/`ADDITIONAL`/`PAYROLL`), all five sharing one `[auth]→[validate]→[dispatch]→[map-error]→[respond]` pipeline |
 
 ## Design documentation (`agent-suite/`)
 
@@ -38,6 +39,9 @@ evidence-linked record of what was built, what passed, and what didn't.
 | [`08-security/security-architecture.md`](agent-suite/08-security/security-architecture.md) | STRIDE threat model and control mapping |
 | [`11-execution/grounding-gaps.md`](agent-suite/11-execution/grounding-gaps.md) | Every open question, assumption, and disclosed limitation, tracked by ID |
 | [`_bmad-output/planning-artifacts/prds/prd-fabric-hris-2026-08-02/prd.md`](_bmad-output/planning-artifacts/prds/prd-fabric-hris-2026-08-02/prd.md) | The ratified PRD — success predicates, functional requirements, the compliance matrix |
+| [`_bmad-output/planning-artifacts/architecture/architecture-fabric-hris-2026-08-08/ARCHITECTURE-SPINE.md`](_bmad-output/planning-artifacts/architecture/architecture-fabric-hris-2026-08-08/ARCHITECTURE-SPINE.md) | `integration-bridge/`'s architecture spine — the pipeline paradigm, the five architecture decisions (AD-1 through AD-6), and what's still deferred |
+| [`_bmad-output/planning-artifacts/epics.md`](_bmad-output/planning-artifacts/epics.md) | `integration-bridge/`'s epic and its 6 stories, each with acceptance criteria |
+| [`_bmad-output/implementation-artifacts/sprint-status.yaml`](_bmad-output/implementation-artifacts/sprint-status.yaml) | `integration-bridge/`'s own story-by-story build record — separate tracking from `implementation-backlog.md` above, since this work was built via a different (BMAD epic/story) workflow |
 
 `agent-suite/context/` holds additional internally-grounded technical reference. Almost all of it
 follows the same generic register as everything else in this list (no real company/product names,
@@ -69,3 +73,11 @@ Every backlog phase (`NET`, `CC`, `REC`, `INT`, `DEP`, `QA`) is closed as of 202
 honestly partial, or explicitly and openly blocked. Nothing is marked passing without live
 evidence. See `implementation-backlog.md` for the row-by-row record, and `grounding-gaps.md` for
 what remains open.
+
+`integration-bridge/`'s own Epic 1 (reliably anchoring any profile-section change from the HRIS
+platform's real write paths) is separately done as of 2026-08-09 — all 6 stories, all 5
+profile-section routes, 88 tests passing. Every story went through the same adversarial code-review
+process before being marked done; two real, disclosed limitations came out of it
+(`grounding-gaps.md` G-35, G-36) rather than being silently claimed as covered. None of its
+`//go:build integration` tests have executed against a live network yet — see `sprint-status.yaml`'s
+recorded action items and `epic-1-retro-2026-08-09.md` for the full retrospective.
