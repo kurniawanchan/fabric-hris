@@ -1,0 +1,250 @@
+# =============================================================================
+# ca-org1-config.yaml — fabric-ca-server config for Org1 (platform org)
+# =============================================================================
+# Backlog item: NET-2 (agent-suite/06-roadmap/implementation-backlog.md)
+#   "Stand up Fabric CA per org (ca.org1, one ca.<tenantID> per tenant, ca.org3)
+#    + TLS CA; MSP + NodeOU config; role/attribute enrollment convention"
+# Authorized by: S-1/S-5 (2026-08-06), G9 re-approved — same tracked-item
+#                authorization basis as NET-1
+#                (agent-suite/00-architecture/quality-gates-and-approval.md §5.5).
+# Scope: EXACTLY NET-2 — CA server config + enrollment convention for
+#        Org1MSP's identity+TLS CA. No peer/orderer core.yaml/orderer.yaml
+#        (that is NET-4/DEP-1), no channel creation (NET-3), no chaincode
+#        (CC-*). Does not touch or replace NET-1's cryptogen-generated
+#        crypto-config/ tree — this is a PARALLEL, Fabric-CA-issued identity
+#        path (see crypto-config.yaml's own header: "Fabric-CA enrollment ...
+#        NET-2's scope, a separate, later backlog item").
+#
+# Design authority (instantiated here, not re-derived):
+#   - agent-suite/00-architecture/solution/fabric-network-design.md §3
+#     (Identity & CAs — one Fabric CA per org + TLS CA; HRIS-role-as-attribute
+#     unchanged from ADR-0005; key separation per ADR-0009/ADR-0019)
+#   - agent-suite/05-adr/ADR-0005-identity-role-mapping.md — org membership
+#     via MSP; HRIS role + company as ENROLLED X.509 ATTRIBUTES
+#     (hris.role in {super_admin, admin, employee, finance, consultant},
+#     hris.company), read in chaincode via the CID API. This file's registrar
+#     (`hf.Registrar.Attributes`) is scoped to allow delegating exactly these
+#     attribute names — see enrollment-runbook.md step (c).
+#   - agent-suite/05-adr/ADR-0019-key-domain-amendment.md, Domain A row:
+#     Fabric MSP signing keys target HSM/PKCS11 in PRODUCTION; HSM
+#     *provisioning* is a deployment-time concern OUTSIDE NET-2's scope — this
+#     design-stage file does not fake it (see `bccsp:` below). TLS keys are
+#     FILE-BASED unconditionally — a documented Fabric constraint, not a
+#     choice [docs: hsm.md].
+#   - agent-suite/05-adr/ADR-0021-employeekey-independent-random-no-master-key.md
+#     (Domain C: employeeKey_i / former pseudonymKey / per-record salts) —
+#     an entirely separate, off-chain secret store. NOTHING in this file, or
+#     in any other NET-2 artifact, references, derives, or stores anything
+#     from that domain. Domain A (this file) and Domain C stay disjoint per
+#     ADR-0009's founding rule, restated in ADR-0019/ADR-0021.
+#
+# NAMING (reused exactly from NET-1 — ../configtx/configtx.yaml,
+# ../crypto-config/crypto-config.yaml): domain "org1" -> Org1MSP.
+#
+# ---------------------------------------------------------------------------
+# COMBINED IDENTITY + TLS CA — explicit call-out, not a silent assumption.
+# ---------------------------------------------------------------------------
+# This ONE fabric-ca-server instance issues BOTH enrollment (identity) certs
+# (the `default` signing profile) AND TLS certs (the built-in `tls` signing
+# profile below, invoked at enroll time with `--enrollment.profile tls`).
+# This is fabric-ca-server's documented out-of-the-box behavior — NOT a
+# custom 4th server. Best-practice guidance recommends running the identity
+# CA and the TLS CA as SEPARATE processes in production
+# [docs: msp.rst#best-practices, cited via
+#  .claude/skills/fabric-identity-security/references/msp-structure.md
+#  "Best practices"]. This prototype's single-combined-CA-per-org choice is a
+# deliberate, disclosed simplification, not a rediscovery of that guidance.
+#
+# Alternatives considered (decisions need alternatives — NET-2 DoD):
+#   A. One combined CA per org (identity + TLS profiles on one server) —
+#      CHOSEN. Pros: exactly 3 CA servers for this pilot topology (matches
+#      the backlog row's literal "ca.org1 / ca.<tenantID> / ca.org3"
+#      enumeration — no 4th/5th/6th server implied); minimal footprint.
+#      Cons: violates the documented identity/TLS-CA separation best
+#      practice — a single compromised CA process/key exposes both signing
+#      surfaces for this org.
+#   B. Two CAs per org (dedicated identity CA + dedicated TLS CA, 6 servers
+#      total for 3 orgs) — REJECTED for NET-2. Pros: matches documented best
+#      practice exactly; smaller blast radius per compromised CA. Cons:
+#      doubles the CA footprint now, and scales as O(2N) CA servers instead
+#      of O(N) once channel-per-tenant fans out client orgs — over-engineered
+#      for a single-pilot-tenant prototype where NET-DESIGN §3 is permissive
+#      ("a TLS CA (shared or per-org)"), not prescriptive. Named as a future
+#      hardening step, not silently dropped.
+#
+# ---------------------------------------------------------------------------
+# VERIFY — schema provenance
+# ---------------------------------------------------------------------------
+# The pinned fabric-docs-2.5 corpus documents Fabric CA only at the
+# conceptual level and links out to the Fabric CA project's own docs for
+# exact server-config keys [docs: commands/fabric-ca-commands.rst]. Every
+# section below follows the shape described in
+# .claude/skills/fabric-identity-security/references/fabric-ca.md and
+# assets/ca-operations-runbook.md, both of which flag this schema
+# `[VERIFY: fabric-ca docs — servercli/serverconfig]` in that skill's own
+# VERIFY-log.md. Treat every key name/nesting below as needing confirmation
+# against the actual hyperledger/fabric-ca:1.5 binary's
+# `fabric-ca-server-config.yaml` before a real `fabric-ca-server start` run
+# (see this task's final report for the itemized list).
+#
+# Confidentiality register (standing constraint): "tenant01" is a generic
+# placeholder tenant ID; nothing else here names a real company/product.
+# =============================================================================
+
+version: 1.5.15   # [VERIFY] pin to the exact hyperledger/fabric-ca:1.5.x patch actually deployed
+
+port: 7054
+
+debug: false
+
+crlsizelimit: 512000
+
+# ---------------------------------------------------------------------------
+# TLS for the CA's OWN server endpoint (clients reach this CA over HTTPS).
+# Orthogonal to the CA acting AS a TLS-issuing CA for other nodes — see the
+# `tls` entry under `signing.profiles` below.
+# ---------------------------------------------------------------------------
+tls:
+  enabled: true
+  certfile:              # [VERIFY] left blank -> confirm fabric-ca-server auto-generates the
+  keyfile:                #          server's own TLS cert/key on first `start` when unset,
+                           #          rather than requiring them pre-supplied (see report).
+  clientauth:
+    type: noclientcert    # server-side TLS only for CA enrollment traffic; mutual TLS is a
+                           # peer/orderer-endpoint concern (NET-DESIGN §6), not this CA's.
+
+ca:
+  name: ca-org1
+  keyfile:                # blank -> auto-generated on first start; do not hand-author.
+  certfile:                # PRODUCTION custody of the CA's OWN signing key (HSM/PKCS11) is a
+  chainfile:                # deployment-time decision, out of NET-2's scope (ADR-0019 Domain A;
+                             # see `bccsp:` below for the explicit software-default call-out).
+
+crl:
+  expiry: 24h
+
+# ---------------------------------------------------------------------------
+# Registry — bootstrap admin identity for Org1's CA. Full registrar authority
+# so this identity can register peer/client/admin identities AND delegate
+# the custom `hris.*` attributes used for ADR-0005's ABAC, via
+# hf.Registrar.Attributes. CHANGE the bootstrap password before any shared
+# or CI use — the value below is a placeholder, not a production secret.
+# ---------------------------------------------------------------------------
+registry:
+  maxenrollments: -1
+  identities:
+    - name: admin-org1
+      pass: org1AdminPW2026
+      type: client
+      affiliation: ""
+      attrs:
+        hf.Registrar.Roles: "*"                          # [VERIFY: fabric-ca docs — attributes]
+        hf.Registrar.DelegateRoles: "*"                   # [VERIFY: fabric-ca docs — attributes]
+        hf.Registrar.Attributes: "hris.role,hris.company,hf.Registrar.Roles,hf.Registrar.DelegateRoles,hf.Revoker,hf.GenCRL"
+          # [VERIFY: fabric-ca docs — attributes] — this admin can only grant, to identities it
+          # registers, the attribute NAMES listed here. hris.role/hris.company must be listed or
+          # enrollment-runbook.md step (c) will be rejected by the CA at register time.
+        hf.Revoker: true
+        hf.GenCRL: true
+        hf.AffiliationMgr: true
+        hf.IntermediateCA: true
+
+db:
+  type: sqlite3
+  datasource: fabric-ca-server.db
+  tls:
+    enabled: false
+
+ldap:
+  enabled: false
+
+# ---------------------------------------------------------------------------
+# Affiliations — one top-level affiliation matching this org's domain
+# ("org1"), mirroring NET-1's crypto-config.yaml Domain field. Affiliation
+# (hf.Affiliation) is a SEPARATE mechanism from (a) NodeOU role
+# classification (client/peer/admin/orderer, set via --id.type at
+# registration — enrollment-runbook.md step (d)) and from (b) the custom
+# hris.role/hris.company ABAC attributes — do not conflate the three.
+# ---------------------------------------------------------------------------
+affiliations:
+  org1:
+    - platform
+
+# ---------------------------------------------------------------------------
+# Signing — `default` issues enrollment (identity) certs; `tls` issues TLS
+# certs from this SAME CA instance (the combined-CA choice explained above).
+# ---------------------------------------------------------------------------
+signing:
+  default:
+    usage:
+      - digital signature
+    expiry: 8760h        # 1 year — documented client-cert default [docs: certs_management.md#client-certificates]
+  profiles:
+    ca:
+      usage:
+        - cert sign
+        - crl sign
+      expiry: 131400h    # 15 years — documented CA/TLS-root default [docs: certs_management.md#organization-ca-root-certificate]
+      caconstraint:
+        isca: true
+        maxpathlen: 0
+    tls:
+      usage:
+        - signing
+        - key encipherment
+        - server auth
+        - client auth
+      expiry: 8760h
+
+csr:
+  cn: ca-org1
+  keyrequest:
+    algo: ecdsa           # ECDSA only — RSA is not supported [docs: msp.rst]
+    size: 256
+  names:
+    - C: ID
+      ST: Jakarta
+      O: Org1
+      OU: platform
+  hosts:
+    - localhost
+    - 127.0.0.1
+    - ca.org1              # matches this CA's docker-compose service name/hostname
+  ca:
+    expiry: 131400h
+    pathlength: 1
+
+idemix:
+  rhpoolsize: 100
+  nonceexpiration: 15s
+  nonceweeksize: 60         # inert — ADR-0008 keeps Idemix out of this design's scope;
+                             # left at documented defaults, not exercised by NET-2.
+
+# ---------------------------------------------------------------------------
+# bccsp — the CA's OWN signing-key crypto provider. `SW` here is a
+# DESIGN-STAGE placeholder, NOT a decision that MSP signing keys stay
+# software-only in production. ADR-0019 Domain A targets HSM/PKCS11 for
+# Fabric MSP signing keys; HSM *provisioning* is explicitly a deployment-time
+# concern outside NET-2's scope (per this backlog item's own framing) — this
+# file does not fake that provisioning by writing an unconfigured `pkcs11`
+# block. TLS keys are file-based unconditionally (see the `tls:` block
+# above) — a documented Fabric constraint, not a choice [docs: hsm.md].
+# ---------------------------------------------------------------------------
+bccsp:
+  default: SW
+  sw:
+    hash: SHA2
+    security: 256
+
+cfg:
+  identities:
+    allowremove: false
+  affiliations:
+    allowremove: false
+
+operations:
+  listenAddress: 127.0.0.1:9443
+  tls:
+    enabled: false          # [VERIFY] enable + require mTLS before any non-loopback exposure.
+                             # Not exposed in ca-docker-compose.yaml — ops/metrics wiring is
+                             # out of NET-2's scope (not in this backlog row's DoD).

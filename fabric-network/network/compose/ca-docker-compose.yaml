@@ -1,0 +1,153 @@
+# =============================================================================
+# ca-docker-compose.yaml — Fabric CA servers for the three-org pilot topology
+# =============================================================================
+# Backlog item: NET-2 (agent-suite/06-roadmap/implementation-backlog.md)
+# Authorized by: S-1/S-5 (2026-08-06), G9 re-approved — same tracked-item
+#                authorization basis as NET-1
+#                (agent-suite/00-architecture/quality-gates-and-approval.md §5.5).
+#
+# Scope: CA servers ONLY — ca.org1, ca.tenant01, ca.org3. This is the FIRST
+# file under compose/ per the repo blueprint's
+# `fabric-network/network/(configtx, crypto-config, compose/helm)` layout.
+# Peers/orderers (NET-4, `sre`) are a SEPARATE, later item — do NOT add
+# peer/orderer services to this file; that boundary is deliberate.
+#
+# Image: hyperledger/fabric-ca:1.5 (per this backlog row's literal
+# instruction). [VERIFY] pin to an exact patch tag (e.g. 1.5.15) rather than
+# the floating `1.5` tag before any non-throwaway/CI use.
+#
+# Design authority: ../fabric-ca/ca-org1-config.yaml's header (org1) carries
+# the full authorization basis, design authority, and the combined-identity-
+# plus-TLS-CA alternatives analysis — not repeated here.
+#
+# ---------------------------------------------------------------------------
+# `--config` PATH — CORRECTED 2026-08-06, empirical finding
+# ---------------------------------------------------------------------------
+# Originally, the static config file was bind-mounted at a path OUTSIDE
+# `FABRIC_CA_HOME`, on the theory that overlapping a single-file bind mount on
+# top of a named-volume-backed directory was Docker-version-sensitive and
+# risky. Running the real `hyperledger/fabric-ca:1.5` image proved the actual
+# risk was different and worse: `fabric-ca-server` writes ALL its runtime
+# state (generated CA cert/key, sqlite registry, generated MSP) relative to
+# the CONFIG FILE'S OWN DIRECTORY, not to `FABRIC_CA_HOME`. With the config
+# file outside the named volume, every bit of CA state was silently landing
+# in the container's ephemeral writable layer — the named volume stayed
+# empty, defeating the "named volume for CA state" requirement without any
+# error or warning. Fixed by bind-mounting the config file INSIDE the named
+# volume's own mount path (confirmed safe on this Docker version: a read-only
+# single-file bind mount coexisting with sibling files written by the
+# container works fine) and pointing `--config` at that same in-volume path.
+# Verified by re-running and inspecting `/etc/hyperledger/fabric-ca-server/`
+# inside each container: `ca-cert.pem`, `tls-cert.pem`, `fabric-ca-server.db`,
+# `msp/` all appear there now, on the actual named volume.
+# `--config` (equivalently `-c`) as a fabric-ca-server flag: confirmed working
+# against the real image.
+#
+# Confidentiality register (standing constraint): "tenant01" is a generic
+# placeholder tenant ID; nothing else here names a real company/product.
+# =============================================================================
+
+version: "3.7"
+
+networks:
+  fabric-ca-net:
+    name: fabric-ca-net
+
+volumes:
+  ca-org1-data:
+  ca-tenant01-data:
+  ca-org3-data:
+
+services:
+
+  # ---------------------------------------------------------------------
+  # ca.org1 — Org1MSP's identity+TLS CA (platform org, platform-operated)
+  # ---------------------------------------------------------------------
+  ca.org1:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.org1
+    hostname: ca.org1
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-org1
+    ports:
+      - "7054:7054"     # CA REST/enrollment+TLS-issuance endpoint (host:container)
+    command: >
+      sh -c '
+      fabric-ca-server start
+      --config /etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml
+      -b admin-org1:org1AdminPW2026
+      -d'
+    volumes:
+      - ca-org1-data:/etc/hyperledger/fabric-ca-server
+      - ../fabric-ca/ca-org1-config.yaml:/etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml:ro
+    networks:
+      - fabric-ca-net
+
+  # ---------------------------------------------------------------------
+  # ca.tenant01 — OrgClient-tenant01MSP's identity+TLS CA (enterprise
+  # client org; independently client-operated in the real deployment —
+  # see ca-tenant01-config.yaml's OWNERSHIP NOTE)
+  # ---------------------------------------------------------------------
+  ca.tenant01:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.tenant01
+    hostname: ca.tenant01
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-tenant01
+    ports:
+      - "8054:7054"
+    command: >
+      sh -c '
+      fabric-ca-server start
+      --config /etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml
+      -b admin-tenant01:tenant01AdminPW2026
+      -d'
+    volumes:
+      - ca-tenant01-data:/etc/hyperledger/fabric-ca-server
+      - ../fabric-ca/ca-tenant01-config.yaml:/etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml:ro
+    networks:
+      - fabric-ca-net
+
+  # ---------------------------------------------------------------------
+  # ca.org3 — Org3MSP's identity+TLS CA (auditor org; operator identity
+  # is **TBD**, gap G-04 residual — see ca-org3-config.yaml's OWNERSHIP NOTE)
+  # ---------------------------------------------------------------------
+  ca.org3:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.org3
+    hostname: ca.org3
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-org3
+    ports:
+      - "9054:7054"
+    command: >
+      sh -c '
+      fabric-ca-server start
+      --config /etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml
+      -b admin-org3:org3AdminPW2026
+      -d'
+    volumes:
+      - ca-org3-data:/etc/hyperledger/fabric-ca-server
+      - ../fabric-ca/ca-org3-config.yaml:/etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml:ro
+    networks:
+      - fabric-ca-net
+
+# =============================================================================
+# NOTE ON THE `-b` FLAG vs. `registry.identities` IN THE CONFIG FILE
+# =============================================================================
+# Each ca-*-config.yaml ALSO declares its bootstrap admin under
+# `registry.identities` (per this backlog row's literal instruction: "a
+# registry with a bootstrap admin identity"). The `-b <name>:<pass>` flag on
+# `fabric-ca-server start` above is the same identity, same credentials —
+# this is a deliberate belt-and-suspenders declaration, matching the worked
+# pattern in
+# .claude/skills/fabric-identity-security/assets/ca-operations-runbook.md
+# Phase 1 (`init -b ...` then `start -b ...`), NOT an oversight. [VERIFY]
+# confirm fabric-ca-server does not error/warn on a bootstrap identity that
+# is already present, identically, in `registry.identities` — this is
+# flagged in this task's final report as a point to check against the real
+# image on first `docker compose up`.
+# =============================================================================

@@ -1,0 +1,662 @@
+# =============================================================================
+# network-docker-compose.yaml — peer/orderer bring-up, three-org pilot topology
+# =============================================================================
+# Backlog item: NET-4 (agent-suite/06-roadmap/implementation-backlog.md)
+#   "Local network bring-up via docker-compose (peers/orderer/CAs for Org1 +
+#   one tenant's OrgClient + Org3, mTLS everywhere)"
+# Authorized by: S-1/S-5 (2026-08-06), G9 re-approved — same tracked-item
+#   authorization basis as NET-1/NET-2
+#   (agent-suite/00-architecture/quality-gates-and-approval.md §5.5).
+#
+# Role note: the backlog row's literal "Role" column says `sre`; this file is
+# executed by `fabric-architect` instead — the agent that has owned every
+# other NET-* item and is the one scoped for Fabric network topology/bring-up
+# (`sre` in this project's roster is a production release/incident
+# specialist for the platform this prototype anchors, not a fit for local
+# Fabric dev-network bring-up). Recorded in the backlog itself, not merely
+# asserted here.
+#
+# Dependency-graph correction (2026-08-06, see the backlog's own note at
+# NET-4's row): this file depends ONLY on NET-1 (configtx.yaml + the
+# crypto-config/ material it points at) and NET-2 (CA servers — NOT consumed
+# by this file, see below). It does NOT depend on NET-3 (channel creation) —
+# NET-3's "peers joined to a channel" step is physically impossible before
+# the peer/orderer processes this file defines exist and are running. This
+# file must execute BEFORE NET-3, not after.
+#
+# ---------------------------------------------------------------------------
+# IDENTITY-MATERIAL SOURCE — read before touching this file
+# ---------------------------------------------------------------------------
+# Every peer/orderer below is provisioned from the crypto material NET-1's
+# `cryptogen generate --config=../crypto-config/crypto-config.yaml` run
+# ALREADY produced on disk at
+# ../crypto-config/{peerOrganizations,ordererOrganizations}/... . This file
+# does NOT regenerate that material and does NOT use NET-2's separate
+# Fabric-CA-issued test identities (ca.org1/ca.tenant01/ca.org3 issued
+# identities are a parallel, independent identity path per NET-2's own header
+# comments — mixing the two would present peers/orderers with identities that
+# ../configtx/configtx.yaml's `MSPDir` fields (which point at the
+# `crypto-config/` tree) do not recognize, and the network would fail to
+# validate its own genesis/channel config against the running nodes). The CA
+# servers (NET-2) are NOT started or referenced by this file at all — no
+# runtime enrollment happens here, only static bind-mounts of already-issued
+# certs/keys.
+#
+# Design authority (instantiated here, not re-derived):
+#   - agent-suite/00-architecture/solution/fabric-network-design.md §2 (Nodes),
+#     §6 (Transport & deployment)
+#   - agent-suite/05-adr/ADR-0007-state-database-leveldb.md (LevelDB — every
+#     peer's CORE_LEDGER_STATE_STATEDATABASE=goleveldb)
+#   - agent-suite/05-adr/ADR-0012-consortium-three-org-topology.md §2 (3-node
+#     Raft, all Org1-operated; quorum=2/3; f=floor((3-1)/2)=1)
+#   - agent-suite/00-architecture/solution/data-model.md §5 ("Operational
+#     precondition. GetHistoryForKey depends on the peer's history database
+#     being enabled" — CORE_LEDGER_HISTORY_ENABLEHISTORYDATABASE=true on every
+#     joined peer, set now rather than left for a later patch)
+#   - ../configtx/configtx.yaml (NET-1's actual file) — hostnames/ports below
+#     are copied verbatim from its Organizations/AnchorPeers/EtcdRaft.Consenters
+#     sections: peer0.org1:7051, peer1.org1:7051 (Org1); peer0.tenant01:7051
+#     (OrgClient-tenant01); peer0.org3:7051 (Org3); orderer0/1/2.org1:7050
+#     (OrdererMSP). A mismatch here would surface as a TLS SAN / gossip
+#     endpoint failure once NET-3 attempts to join these peers to a channel —
+#     every `hostname:`/CORE_PEER_ADDRESS/ORDERER_GENERAL_LISTENPORT value
+#     below is cross-checked against that file, not invented independently.
+#
+# Fabric syntax/parameter grounding:
+#   [docs: deploypeer/peerchecklist.md] [docs: deployorderer/ordererchecklist.md]
+#   [docs: enable_tls.rst] [docs: operations_service.rst#health-checks]
+#   [docs: deployment_guide_overview.rst] (env-var derivation rule)
+# Pattern mirrors fabric-skill-suite/skills/fabric-operations/references/
+# examples-configs.md §4 (annotated Docker Compose skeleton) — adapted to this
+# design's 3-org/7-node shape, not copied verbatim; deviations from that
+# skeleton are called out explicitly below where they occur.
+#
+# Confidentiality register (standing constraint): "tenant01" is a generic
+# placeholder tenant ID. No real company/product/table/column name appears
+# anywhere in this file.
+#
+# ---------------------------------------------------------------------------
+# IMAGE TAGS — [VERIFY]
+# ---------------------------------------------------------------------------
+# This backlog row's literal instruction pins the floating `2.5` tag for both
+# `hyperledger/fabric-peer` and `hyperledger/fabric-orderer`. Per the same
+# caution NET-2's header raised for `hyperledger/fabric-ca:1.5`: [VERIFY] pin
+# to an exact patch tag (fabric-core/references/version-matrix.md records
+# v2.5.16 as the latest patch present in the pinned corpus snapshot — newer
+# patches likely exist upstream) before any non-throwaway/CI use. Left
+# floating here only because the backlog row names the floating tag literally.
+#
+# ---------------------------------------------------------------------------
+# DOCKER NETWORK — new network, NOT a reuse of NET-2's `fabric-ca-net`
+# ---------------------------------------------------------------------------
+# Choice: a dedicated network, `fabric-network-net`, distinct from NET-2's
+# `fabric-ca-net`. Reasoning: nothing in this file has a RUNTIME dependency on
+# the CA containers (see "IDENTITY-MATERIAL SOURCE" above — all identities are
+# pre-generated cryptogen material, no enrollment happens at container start),
+# so there is no functional need to share a network with ca-docker-compose.yaml.
+# Keeping this file's network self-contained also avoids a real operational
+# risk: if `network-docker-compose.yaml` and `ca-docker-compose.yaml` are
+# `docker compose up`'d as two SEPARATE projects (the most likely invocation,
+# matching how NET-2's file is scoped/run standalone) rather than combined via
+# multiple `-f` flags in one invocation, Compose's behavior when a second,
+# independently-run project declares a same-named, non-`external` network that
+# a first project already created is version-sensitive (some Compose versions
+# silently reuse it; others warn or error on a label/config mismatch) — a risk
+# this file avoids entirely by not sharing a name.
+# [FLAG] If a later item (NET-3, CC-5) needs one CLI/admin container able to
+# resolve BOTH ca.* and peer*/orderer* hostnames in a single network namespace,
+# the clean fix at that time is either (a) invoke both compose files together
+# via `docker compose -f ca-docker-compose.yaml -f network-docker-compose.yaml
+# up -d`, which merges their network definitions safely under one project, or
+# (b) mark one network `external: true` referencing the other's name. Not
+# decided here since neither need exists yet in this file's own scope.
+#
+# ---------------------------------------------------------------------------
+# PORT SCHEME — explicit, non-colliding (stated once here, not per-service)
+# ---------------------------------------------------------------------------
+# Internal (container-network) ports are FIXED by ../configtx/configtx.yaml
+# and by the cryptogen-generated TLS SANs — every peer listens on internal
+# 7051 (gRPC) + 7052 (chaincode, never published to the host) + 9443
+# (operations); every orderer listens on internal 7050 (gRPC/Raft, General
+# listener reused for Cluster traffic — see "RAFT CLUSTER TLS" note below) +
+# 9443 (Admin/osnadmin) + 8443 (operations). These internal numbers are
+# identical across same-type nodes because each node is a separate container
+# with its own network namespace — no internal collision results.
+#
+# Host-published ports are unique per node (a single host can't bind the same
+# port twice), chosen to avoid any collision with NET-2's CA host ports
+# (7054/8054/9054):
+#
+#   Peers            | host gRPC | host operations
+#   -----------------|-----------|------------------
+#   peer0.org1       | 7051      | 9444
+#   peer1.org1       | 8051      | 9445
+#   peer0.tenant01    | 9051      | 9446
+#   peer0.org3       | 10051     | 9447
+#
+#   Orderers         | host gRPC | host Admin | host operations
+#   -----------------|-----------|------------|------------------
+#   orderer0.org1    | 7050      | 7060       | 7070
+#   orderer1.org1    | 8050      | 8060       | 8070
+#   orderer2.org1    | 9050      | 9060       | 9070
+#
+# (Chaincode-listen 7052 is never published — no chaincode container exists
+# yet at this build phase; CC-5 is the item that will need it, from inside
+# the docker network only, not from the host.)
+#
+# ---------------------------------------------------------------------------
+# CROSS-ORG mTLS TRUST — proactively wired, [FLAG] unverified end-to-end
+# ---------------------------------------------------------------------------
+# "mTLS everywhere" (this item's DoD) requires each node's TLS listener to
+# actually be ABLE to complete a mutual-TLS handshake with the other orgs'
+# nodes once NET-3 joins them to a shared channel, not merely to enable
+# `clientAuthRequired` against an empty trust list. Concretely:
+#   - Each PEER's `clientRootCAs` (inbound gRPC server trust for client certs)
+#     is set to the UNION of all three peer-org TLS CAs (Org1, OrgClient-
+#     tenant01, Org3) — needed so a cross-org peer (gossip) or cross-org admin
+#     identity can even complete a TLS handshake against this peer's listener.
+#   - Each ORDERER's `General.TLS.ClientRootCAs` is set to the UNION of
+#     OrdererMSP's own TLS CA (needed for orderer-to-orderer Raft traffic,
+#     which dials as a CLIENT using the same General cert/key — see "RAFT
+#     CLUSTER TLS" below) PLUS all three peer-org TLS CAs (needed for peers of
+#     any org to submit/deliver against this orderer).
+#   - Each ORDERER's `Admin.TLS.ClientRootCAs` is scoped to OrdererMSP's own
+#     TLS CA ONLY — deliberate, matching ../configtx/configtx.yaml's own note
+#     that channel/admin operations are an Org1-orderer-admin-only privileged
+#     operation (ADR-0013's "onboarding is a privileged operation" consequence)
+#     — no other org's identity is expected to reach `osnadmin` against these
+#     nodes.
+# **RESOLVED 2026-08-06, empirical finding — the multi-value bracket env vars
+# do not work as written.** `CORE_PEER_TLS_CLIENTROOTCAS_FILES=[a,b,c]` was
+# NOT parsed as an array by the real `hyperledger/fabric-peer:2.5` binary —
+# the peer treated the entire bracketed string, brackets included, as ONE
+# literal path and crashed at startup (`FATA ... error loading client root
+# CAs (open /etc/hyperledger/fabric/[/etc/hyperledger/fabric/tls-cross/...]:
+# no such file or directory)`). All four peers hit this identically. Fixed by
+# REMOVING `CORE_PEER_TLS_CLIENTROOTCAS_FILES` (and the orderer's analogous
+# `ORDERER_GENERAL_TLS_CLIENTROOTCAS`/`ORDERER_ADMIN_TLS_CLIENTROOTCAS`)
+# entirely, keeping only the SINGULAR `CORE_PEER_TLS_ROOTCERT_FILE` /
+# `ORDERER_GENERAL_TLS_ROOTCAS` (unbracketed single value, own org's TLS CA
+# only) — this is also what `fabric-samples`' own test-network does; it never
+# sets `clientRootCAs.files` via env for basic bring-up either. Confirms
+# uncertainty (1) below empirically: cross-org TLS trust for gossip/channel
+# traffic is sourced from each org's MSP `tlscacerts` embedded in the channel
+# config once a channel exists, not from a static core.yaml-level field —
+# verified by observation, not just hypothesis, once NET-3 joins these peers
+# to a real channel. With the fix applied, all 7 nodes reached a stable "Up"
+# state and Org1's two peers completed a real mutual-TLS gossip handshake
+# with each other (`grpc.peer_subject="CN=peer1.org1,..."` accepted by
+# peer0.org1 and vice versa) — not merely "container didn't crash."
+#
+# Two uncertainties remain genuinely open (deferred to NET-3's real channel
+# join, not resolved by node bring-up alone):
+#   (1) whether cross-ORG (not just cross-peer-within-Org1) mTLS — e.g.
+#       peer0.tenant01 or peer0.org3 dialing/being-dialed-by an Org1 node —
+#       succeeds purely from channel-embedded MSP trust with no core.yaml-level
+#       clientRootCAs at all. Org1-internal gossip working is not proof of the
+#       cross-org path; NET-3 is where this gets a real answer.
+#   (2) whether `hyperledger/fabric-peer:2.5`/`hyperledger/fabric-orderer:2.5`'s
+#       other env-var names/defaults (beyond the ones already exercised above)
+#       hold up — this task's own history (NET-1's MSP-ID separator, NET-2's
+#       mount-path/cert-filename surprises, and this file's own array-env-var
+#       surprise) is a standing reason not to assert confidence beyond what
+#       has actually been run.
+#
+# ---------------------------------------------------------------------------
+# RAFT CLUSTER TLS
+# ---------------------------------------------------------------------------
+# `General.Cluster.*` (separate optional listener/certs for intra-Raft
+# traffic) is left UNSET for all three orderers — per
+# fabric-skill-suite/skills/fabric-operations/references/examples-configs.md
+# §2's own annotation, when unset, Cluster traffic reuses `General.TLS`'s own
+# certificate/key. This is the documented default, not an omission.
+#
+# ---------------------------------------------------------------------------
+# PERSISTENCE — named volumes, explicit paths (NET-2's mount-path lesson)
+# ---------------------------------------------------------------------------
+# NET-2 found, by running the real image, that `fabric-ca-server` writes state
+# relative to paths that are easy to get wrong silently (state landing in the
+# ephemeral container layer instead of the named volume, with no error).
+# Applying that lesson here defensively: every ledger/WAL/snapshot path below
+# is set via an EXPLICIT env var (not left to an assumed image default), and
+# each is a subpath of exactly one named volume's own mount point per node, so
+# `docker compose down -v` fully resets state and nothing can silently miss
+# the volume. [VERIFY] this against the real image on first `docker compose
+# up` — I cannot run it from here.
+#
+# No PDC / collections-config.json referenced anywhere (ADR-0015) — this file
+# is node bring-up only, no chaincode, no collections.
+# =============================================================================
+
+version: "3.7"
+
+networks:
+  fabric-network-net:
+    name: fabric-network-net
+
+volumes:
+  peer0-org1-ledger:
+  peer1-org1-ledger:
+  peer0-tenant01-ledger:
+  peer0-tenant02-ledger:
+  peer0-org3-ledger:
+  orderer0-org1-ledger:
+  orderer1-org1-ledger:
+  orderer2-org1-ledger:
+
+services:
+
+  # =========================================================================
+  # Org1 — platform provider. 2 peers, endorse + commit, LevelDB (ADR-0007).
+  # =========================================================================
+
+  peer0.org1:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.org1
+    hostname: peer0.org1
+    command: peer node start
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.org1
+      - CORE_PEER_NETWORKID=hris-pilot
+      - CORE_PEER_ADDRESS=peer0.org1:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.org1:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      # Gossip: Org1's 2-peer set uses dynamic leader election between
+      # themselves (rather than statically declaring one org leader) — the
+      # single-peer orgs below (tenant01, Org3) use the static-leader pattern
+      # instead, since there is no sibling peer to elect against. [FLAG] this
+      # is an engineering-judgment choice for the 2-peer case, not something
+      # this file's own reference skeleton (single-peer example) shows
+      # directly — flagged, not asserted as the only correct shape.
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.org1:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org1:7051
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true
+      - CORE_PEER_GOSSIP_ORGLEADER=false
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_TLS_CLIENTAUTHREQUIRED=true
+      - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
+      - CORE_LEDGER_HISTORY_ENABLEHISTORYDATABASE=true
+      - CORE_PEER_FILESYSTEMPATH=/var/hyperledger/production
+      - CORE_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+      - CORE_METRICS_PROVIDER=disabled
+    ports:
+      - "7051:7051"
+      - "9444:9443"
+    volumes:
+      - ../crypto-config/peerOrganizations/org1/peers/peer0.org1/msp:/etc/hyperledger/fabric/msp:ro
+      - ../crypto-config/peerOrganizations/org1/peers/peer0.org1/tls:/etc/hyperledger/fabric/tls:ro
+      - ../crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org1-cert.pem:ro
+      - ../crypto-config/peerOrganizations/tenant01/tlsca/tlsca.tenant01-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.tenant01-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org3/tlsca/tlsca.org3-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org3-cert.pem:ro
+      - peer0-org1-ledger:/var/hyperledger/production
+    networks:
+      - fabric-network-net
+
+  peer1.org1:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer1.org1
+    hostname: peer1.org1
+    command: peer node start
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer1.org1
+      - CORE_PEER_NETWORKID=hris-pilot
+      - CORE_PEER_ADDRESS=peer1.org1:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer1.org1:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org1:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org1:7051
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true
+      - CORE_PEER_GOSSIP_ORGLEADER=false
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_TLS_CLIENTAUTHREQUIRED=true
+      - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
+      - CORE_LEDGER_HISTORY_ENABLEHISTORYDATABASE=true
+      - CORE_PEER_FILESYSTEMPATH=/var/hyperledger/production
+      - CORE_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+      - CORE_METRICS_PROVIDER=disabled
+    ports:
+      - "8051:7051"
+      - "9445:9443"
+    volumes:
+      - ../crypto-config/peerOrganizations/org1/peers/peer1.org1/msp:/etc/hyperledger/fabric/msp:ro
+      - ../crypto-config/peerOrganizations/org1/peers/peer1.org1/tls:/etc/hyperledger/fabric/tls:ro
+      - ../crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org1-cert.pem:ro
+      - ../crypto-config/peerOrganizations/tenant01/tlsca/tlsca.tenant01-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.tenant01-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org3/tlsca/tlsca.org3-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org3-cert.pem:ro
+      - peer1-org1-ledger:/var/hyperledger/production
+    networks:
+      - fabric-network-net
+
+  # =========================================================================
+  # Orderer org — 3 etcdraft consenters, ALL Org1-operated (ADR-0012 §2).
+  # Quorum = majority = 2 of 3. Crash-fault tolerance f = floor((3-1)/2) = 1:
+  # tolerates 1 node down; halts ordering on EVERY channel it serves if 2+ of
+  # 3 are unavailable simultaneously (proof of this is NET-6's scope, not
+  # this file's — this file only stands the 3 nodes up).
+  # A single ordering service is shared across every tenant channel — not
+  # fanned out per tenant (NET-DESIGN §2) — hence exactly 3 orderer services
+  # here regardless of tenant count.
+  # =========================================================================
+
+  orderer0.org1:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer0.org1
+    hostname: orderer0.org1
+    command: orderer
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=/var/hyperledger/orderer/tls/ca.crt
+      - ORDERER_GENERAL_TLS_CLIENTAUTHREQUIRED=true
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_FILELEDGER_LOCATION=/var/hyperledger/production/orderer
+      - ORDERER_CONSENSUS_WALDIR=/var/hyperledger/production/orderer/etcdraft/wal
+      - ORDERER_CONSENSUS_SNAPDIR=/var/hyperledger/production/orderer/etcdraft/snapshot
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_CLIENTAUTHREQUIRED=true
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=/var/hyperledger/orderer/tls/ca.crt
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9443
+      - ORDERER_OPERATIONS_LISTENADDRESS=0.0.0.0:8443
+      - ORDERER_METRICS_PROVIDER=disabled
+    ports:
+      - "7050:7050"
+      - "7060:9443"
+      - "7070:8443"
+    volumes:
+      - ../crypto-config/ordererOrganizations/org1/orderers/orderer0.org1/msp:/var/hyperledger/orderer/msp:ro
+      - ../crypto-config/ordererOrganizations/org1/orderers/orderer0.org1/tls:/var/hyperledger/orderer/tls:ro
+      - ../crypto-config/ordererOrganizations/org1/tlsca/tlsca.org1-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.ordererorg-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.org1-cert.pem:ro
+      - ../crypto-config/peerOrganizations/tenant01/tlsca/tlsca.tenant01-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.tenant01-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org3/tlsca/tlsca.org3-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.org3-cert.pem:ro
+      - orderer0-org1-ledger:/var/hyperledger/production/orderer
+    networks:
+      - fabric-network-net
+
+  orderer1.org1:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer1.org1
+    hostname: orderer1.org1
+    command: orderer
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=/var/hyperledger/orderer/tls/ca.crt
+      - ORDERER_GENERAL_TLS_CLIENTAUTHREQUIRED=true
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_FILELEDGER_LOCATION=/var/hyperledger/production/orderer
+      - ORDERER_CONSENSUS_WALDIR=/var/hyperledger/production/orderer/etcdraft/wal
+      - ORDERER_CONSENSUS_SNAPDIR=/var/hyperledger/production/orderer/etcdraft/snapshot
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_CLIENTAUTHREQUIRED=true
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=/var/hyperledger/orderer/tls/ca.crt
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9443
+      - ORDERER_OPERATIONS_LISTENADDRESS=0.0.0.0:8443
+      - ORDERER_METRICS_PROVIDER=disabled
+    ports:
+      - "8050:7050"
+      - "8060:9443"
+      - "8070:8443"
+    volumes:
+      - ../crypto-config/ordererOrganizations/org1/orderers/orderer1.org1/msp:/var/hyperledger/orderer/msp:ro
+      - ../crypto-config/ordererOrganizations/org1/orderers/orderer1.org1/tls:/var/hyperledger/orderer/tls:ro
+      - ../crypto-config/ordererOrganizations/org1/tlsca/tlsca.org1-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.ordererorg-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.org1-cert.pem:ro
+      - ../crypto-config/peerOrganizations/tenant01/tlsca/tlsca.tenant01-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.tenant01-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org3/tlsca/tlsca.org3-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.org3-cert.pem:ro
+      - orderer1-org1-ledger:/var/hyperledger/production/orderer
+    networks:
+      - fabric-network-net
+
+  orderer2.org1:
+    image: hyperledger/fabric-orderer:2.5
+    container_name: orderer2.org1
+    hostname: orderer2.org1
+    command: orderer
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=/var/hyperledger/orderer/tls/ca.crt
+      - ORDERER_GENERAL_TLS_CLIENTAUTHREQUIRED=true
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_FILELEDGER_LOCATION=/var/hyperledger/production/orderer
+      - ORDERER_CONSENSUS_WALDIR=/var/hyperledger/production/orderer/etcdraft/wal
+      - ORDERER_CONSENSUS_SNAPDIR=/var/hyperledger/production/orderer/etcdraft/snapshot
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_CLIENTAUTHREQUIRED=true
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=/var/hyperledger/orderer/tls/ca.crt
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9443
+      - ORDERER_OPERATIONS_LISTENADDRESS=0.0.0.0:8443
+      - ORDERER_METRICS_PROVIDER=disabled
+    ports:
+      - "9050:7050"
+      - "9060:9443"
+      - "9070:8443"
+    volumes:
+      - ../crypto-config/ordererOrganizations/org1/orderers/orderer2.org1/msp:/var/hyperledger/orderer/msp:ro
+      - ../crypto-config/ordererOrganizations/org1/orderers/orderer2.org1/tls:/var/hyperledger/orderer/tls:ro
+      - ../crypto-config/ordererOrganizations/org1/tlsca/tlsca.org1-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.ordererorg-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.org1-cert.pem:ro
+      - ../crypto-config/peerOrganizations/tenant01/tlsca/tlsca.tenant01-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.tenant01-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org3/tlsca/tlsca.org3-cert.pem:/var/hyperledger/orderer/tls-cross/tlsca.org3-cert.pem:ro
+      - orderer2-org1-ledger:/var/hyperledger/production/orderer
+    networks:
+      - fabric-network-net
+
+  # =========================================================================
+  # OrgClient-tenant01 — templated enterprise-client org, ONE instance for
+  # the single pilot tenant "tenant01". 1 peer, independently client-operated
+  # in the real deployment (NET-DESIGN §1) — this container is a LOCAL stand-in
+  # for that client-operated peer, not a statement about who runs it in
+  # production (DEP-1/DEP-2's scope, post-G9, not this file's).
+  # =========================================================================
+
+  peer0.tenant02:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.tenant02
+    hostname: peer0.tenant02
+    command: peer node start
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.tenant02
+      - CORE_PEER_NETWORKID=hris-pilot
+      - CORE_PEER_ADDRESS=peer0.tenant02:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.tenant02:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_LOCALMSPID=OrgClient-tenant02MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      # Single-peer org: static leader, no sibling to bootstrap against —
+      # bootstrap set to self, matching the single-peer pattern in
+      # fabric-skill-suite's own reference example.
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.tenant02:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.tenant02:7051
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=true
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_TLS_CLIENTAUTHREQUIRED=true
+      - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
+      - CORE_LEDGER_HISTORY_ENABLEHISTORYDATABASE=true
+      - CORE_PEER_FILESYSTEMPATH=/var/hyperledger/production
+      - CORE_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+      - CORE_METRICS_PROVIDER=disabled
+    ports:
+      - "11051:7051"
+      - "11446:9443"
+    volumes:
+      - ../crypto-config/peerOrganizations/tenant02/peers/peer0.tenant02/msp:/etc/hyperledger/fabric/msp:ro
+      - ../crypto-config/peerOrganizations/tenant02/peers/peer0.tenant02/tls:/etc/hyperledger/fabric/tls:ro
+      - ../crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org1-cert.pem:ro
+      - ../crypto-config/peerOrganizations/tenant02/tlsca/tlsca.tenant02-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.tenant02-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org3/tlsca/tlsca.org3-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org3-cert.pem:ro
+      - peer0-tenant02-ledger:/var/hyperledger/production
+    networks:
+      - fabric-network-net
+
+
+  peer0.tenant01:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.tenant01
+    hostname: peer0.tenant01
+    command: peer node start
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.tenant01
+      - CORE_PEER_NETWORKID=hris-pilot
+      - CORE_PEER_ADDRESS=peer0.tenant01:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.tenant01:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_LOCALMSPID=OrgClient-tenant01MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      # Single-peer org: static leader, no sibling to bootstrap against —
+      # bootstrap set to self, matching the single-peer pattern in
+      # fabric-skill-suite's own reference example.
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.tenant01:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.tenant01:7051
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=true
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_TLS_CLIENTAUTHREQUIRED=true
+      - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
+      - CORE_LEDGER_HISTORY_ENABLEHISTORYDATABASE=true
+      - CORE_PEER_FILESYSTEMPATH=/var/hyperledger/production
+      - CORE_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+      - CORE_METRICS_PROVIDER=disabled
+    ports:
+      - "9051:7051"
+      - "9446:9443"
+    volumes:
+      - ../crypto-config/peerOrganizations/tenant01/peers/peer0.tenant01/msp:/etc/hyperledger/fabric/msp:ro
+      - ../crypto-config/peerOrganizations/tenant01/peers/peer0.tenant01/tls:/etc/hyperledger/fabric/tls:ro
+      - ../crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org1-cert.pem:ro
+      - ../crypto-config/peerOrganizations/tenant01/tlsca/tlsca.tenant01-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.tenant01-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org3/tlsca/tlsca.org3-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org3-cert.pem:ro
+      - peer0-tenant01-ledger:/var/hyperledger/production
+    networks:
+      - fabric-network-net
+
+  # =========================================================================
+  # Org3 — auditor. 1 read-only peer — commit + read only, NEVER endorses
+  # (ADR-0012 §1/§5, FR-23). That is an ENDORSEMENT-POLICY property (NET-5's
+  # scope, applied at chaincode-commit time) — this container's own bring-up
+  # shape is identical to any other peer; nothing here enforces read-only-ness
+  # by itself.
+  # =========================================================================
+
+  peer0.org3:
+    image: hyperledger/fabric-peer:2.5
+    container_name: peer0.org3
+    hostname: peer0.org3
+    command: peer node start
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=peer0.org3
+      - CORE_PEER_NETWORKID=hris-pilot
+      - CORE_PEER_ADDRESS=peer0.org3:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.org3:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_LOCALMSPID=Org3MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org3:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org3:7051
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=true
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_TLS_CLIENTAUTHREQUIRED=true
+      - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
+      - CORE_LEDGER_HISTORY_ENABLEHISTORYDATABASE=true
+      - CORE_PEER_FILESYSTEMPATH=/var/hyperledger/production
+      - CORE_OPERATIONS_LISTENADDRESS=0.0.0.0:9443
+      - CORE_METRICS_PROVIDER=disabled
+    ports:
+      - "10051:7051"
+      - "9447:9443"
+    volumes:
+      - ../crypto-config/peerOrganizations/org3/peers/peer0.org3/msp:/etc/hyperledger/fabric/msp:ro
+      - ../crypto-config/peerOrganizations/org3/peers/peer0.org3/tls:/etc/hyperledger/fabric/tls:ro
+      - ../crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org1-cert.pem:ro
+      - ../crypto-config/peerOrganizations/tenant01/tlsca/tlsca.tenant01-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.tenant01-cert.pem:ro
+      - ../crypto-config/peerOrganizations/org3/tlsca/tlsca.org3-cert.pem:/etc/hyperledger/fabric/tls-cross/tlsca.org3-cert.pem:ro
+      - peer0-org3-ledger:/var/hyperledger/production
+    networks:
+      - fabric-network-net
+
+# =============================================================================
+# NOT IN SCOPE HERE (deliberate boundaries, matching NET-1/NET-2's own
+# discipline of not reaching past their own backlog item):
+#   - No CLI/admin/tools container: `peer channel join`, `osnadmin channel
+#     join`, chaincode lifecycle — NET-3/NET-5/CC-5's scope, not this file's.
+#   - No chaincode / external-builder / docker.sock mount: no chaincode
+#     package exists yet (CC-1..5); adding the docker.sock bind now would be
+#     an unused privilege escalation.
+#   - No CouchDB service: ADR-0007 ratifies LevelDB; CORE_LEDGER_STATE_
+#     STATEDATABASE=goleveldb on every peer above is this file's compliance
+#     evidence, not a re-decision (that decision is fabric-performance's/
+#     ADR-0007's, not this item's to reopen).
+#   - No PDC / collections-config.json (ADR-0015 retires PDC entirely).
+#   - No Docker `healthcheck:` blocks: the operations `/healthz` endpoint is
+#     stood up (see host-published operations ports above) but this file does
+#     not assume the base images ship a suitable HTTP client for a compose-
+#     level healthcheck probe — left to the orchestrator's own external check
+#     rather than asserted here as verified.
+# =============================================================================

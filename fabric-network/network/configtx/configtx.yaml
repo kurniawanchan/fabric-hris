@@ -1,0 +1,348 @@
+# =============================================================================
+# configtx.yaml — three-org consortium, channel-per-tenant (tenant01 instance)
+# =============================================================================
+# Backlog item:  NET-1 (agent-suite/06-roadmap/implementation-backlog.md)
+#                "Author configtx.yaml + genesis for the three-org consortium"
+# Authorized by: S-1/S-5 (2026-08-06), G9 re-approved — see
+#                agent-suite/00-architecture/quality-gates-and-approval.md §5.5.
+#                Tracked-item code only (R-05 boundary) — this file's scope is
+#                exactly NET-1: org/MSP/capability/ordering/endorsement shape
+#                for ONE generic pilot tenant, "tenant01". Nothing here reaches
+#                beyond NET-1 (no CA config — that is NET-2; no compose/helm —
+#                that is NET-4/DEP-1; no chaincode lifecycle — that is CC-5).
+#
+# Design authority (instantiated here, not re-derived):
+#   - agent-suite/00-architecture/solution/fabric-network-design.md §1 (orgs/MSPs),
+#     §2 (nodes), §4 (channels), §5 (chaincode & endorsement)
+#   - agent-suite/05-adr/ADR-0012-consortium-three-org-topology.md (three orgs,
+#     platform-operated ordering, AND-endorsement, Org3 read-only)
+#   - agent-suite/05-adr/ADR-0013-channel-per-tenant.md (channel-per-tenant,
+#     per-tenant OrgClient-<tenantID> MSP, world-state keys drop companyId)
+#   - agent-suite/05-adr/ADR-0015-crypto-shred-erasure.md (retires PDC entirely
+#     for this design — NO collections-config.json, NO PurgePrivateData, NO
+#     blockToLive anywhere in this file, or anywhere in this design)
+#
+# Confidentiality register (standing constraint): "tenant01" is a generic
+# placeholder tenant ID. No real company/product/table/column name appears
+# anywhere in this file.
+#
+# configtxgen/Fabric syntax grounded in:
+#   [docs: create_channel/create_channel_config.md]
+#   [docs: create_channel/create_channel_participation.md]
+#   [docs: orderer/ordering_service.md#raft-concepts]
+#   [docs: channels.rst] [docs: msp.rst] [docs: capability_requirements.rst]
+# Pattern mirrors fabric-skill-suite/skills/fabric-network-architect/assets/
+# configtx-3org-raft.yaml and fabric-skill-suite/skills/fabric-operations/
+# references/examples-configs.md §3 (SampleAppChannelEtcdRaft, no-system-channel
+# / channel-participation model) — both cite the same corpus, not copied verbatim.
+#
+# ---------------------------------------------------------------------------
+# ORDERER-MSP NOTE (resolves an apparent tension between NET-DESIGN and the
+# NET-1 backlog row): NET-DESIGN §1 states "there is no separate ordering
+# org" — that is a statement about ORGANIZATIONAL ROLE (Org1, the platform
+# provider, is the only entity that operates ordering; no 4th, neutral
+# consortium-operator role exists). It is not a statement that the orderer
+# nodes must share Org1MSP's own MSP identity. This file follows the NET-1
+# backlog row literally and gives the 3 Raft consenters their own distinct
+# MSP, `OrdererMSP`, exactly as fabric-samples' own test-network pattern does
+# even in single-operator topologies (orderer identities are typically
+# enrolled and administered separately from peer identities). `OrdererMSP` is
+# "Org1-operated" in the sense that Org1 (the platform vendor) is the sole
+# holder of OrdererMSP's admin/orderer identities — the same organization,
+# a structurally distinct Fabric MSP. This is consistent with, not a
+# deviation from, ADR-0012/NET-DESIGN.
+# ---------------------------------------------------------------------------
+
+################################################################################
+# Organizations
+################################################################################
+Organizations:
+
+  # --- Orderer org: 3 etcdraft consenters, ALL Org1-operated (ADR-0012 §2) ---
+  # A single ordering service shared across every tenant channel — NOT
+  # provisioned per tenant (NET-DESIGN §2: "Ordering is provisioned once").
+  - &OrdererOrg
+      Name: OrdererOrg
+      ID: OrdererMSP
+      MSPDir: ../crypto-config/ordererOrganizations/org1/msp
+      Policies:
+          Readers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
+          Writers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
+          Admins:  { Type: Signature, Rule: "OR('OrdererMSP.admin')" }
+      # Channel-creation for a new tenant requires an Org1 orderer-admin
+      # identity (an OrdererMSP admin identity, held only by Org1) — the
+      # mechanical basis of ADR-0013's "onboarding is a privileged
+      # operation" consequence. [NET-DESIGN §4]
+      OrdererEndpoints:
+          - orderer0.org1:7050
+          - orderer1.org1:7050
+          - orderer2.org1:7050
+
+  # --- Org1: platform provider. 2 peers, endorse + commit. ---
+  # [docs: create_channel/create_channel_config.md#organizations]
+  - &Org1
+      Name: Org1MSP
+      ID: Org1MSP
+      MSPDir: ../crypto-config/peerOrganizations/org1/msp
+      Policies:
+          Readers:     { Type: Signature, Rule: "OR('Org1MSP.admin','Org1MSP.peer','Org1MSP.client')" }
+          Writers:     { Type: Signature, Rule: "OR('Org1MSP.admin','Org1MSP.client')" }
+          Admins:      { Type: Signature, Rule: "OR('Org1MSP.admin')" }
+          Endorsement: { Type: Signature, Rule: "OR('Org1MSP.peer')" }
+      # AnchorPeers required for cross-org gossip [docs: gossip.rst#anchor-peers]
+      AnchorPeers:
+          - Host: peer0.org1
+            Port: 7051
+
+  # --- OrgClient-tenant02: templated enterprise-client org, ONE instance ---
+  # for the single pilot tenant "tenant02" (generic placeholder tenant ID;
+  # ADR-0013's OrgClient-<tenantID> role instantiated once). 1 peer,
+  # independently client-operated — never platform-operated (NET-DESIGN §1).
+  #
+  # MSP-ID uses a hyphen, not the ADR's originally-written underscore — see
+  # this file's closing comment block: verified empirically against the real
+  # configtxgen binary, corrected in ADR-0013 the same day (2026-08-06).
+  - &OrgClientTenant02
+      Name: OrgClient-tenant02MSP
+      ID: OrgClient-tenant02MSP
+      MSPDir: ../crypto-config/peerOrganizations/tenant02/msp
+      Policies:
+          Readers:     { Type: Signature, Rule: "OR('OrgClient-tenant02MSP.admin','OrgClient-tenant02MSP.peer','OrgClient-tenant02MSP.client')" }
+          Writers:     { Type: Signature, Rule: "OR('OrgClient-tenant02MSP.admin','OrgClient-tenant02MSP.client')" }
+          Admins:      { Type: Signature, Rule: "OR('OrgClient-tenant02MSP.admin')" }
+          Endorsement: { Type: Signature, Rule: "OR('OrgClient-tenant02MSP.peer')" }
+      AnchorPeers:
+          - Host: peer0.tenant02
+            Port: 7051
+
+
+  # --- OrgClient-tenant01: templated enterprise-client org, ONE instance ---
+  # for the single pilot tenant "tenant01" (generic placeholder tenant ID;
+  # ADR-0013's OrgClient-<tenantID> role instantiated once). 1 peer,
+  # independently client-operated — never platform-operated (NET-DESIGN §1).
+  #
+  # MSP-ID uses a hyphen, not the ADR's originally-written underscore — see
+  # this file's closing comment block: verified empirically against the real
+  # configtxgen binary, corrected in ADR-0013 the same day (2026-08-06).
+  - &OrgClientTenant01
+      Name: OrgClient-tenant01MSP
+      ID: OrgClient-tenant01MSP
+      MSPDir: ../crypto-config/peerOrganizations/tenant01/msp
+      Policies:
+          Readers:     { Type: Signature, Rule: "OR('OrgClient-tenant01MSP.admin','OrgClient-tenant01MSP.peer','OrgClient-tenant01MSP.client')" }
+          Writers:     { Type: Signature, Rule: "OR('OrgClient-tenant01MSP.admin','OrgClient-tenant01MSP.client')" }
+          Admins:      { Type: Signature, Rule: "OR('OrgClient-tenant01MSP.admin')" }
+          Endorsement: { Type: Signature, Rule: "OR('OrgClient-tenant01MSP.peer')" }
+      AnchorPeers:
+          - Host: peer0.tenant01
+            Port: 7051
+
+  # --- Org3: auditor. 1 read-only peer — commit + read only, NEVER endorses. ---
+  # (ADR-0012 §1/§5, FR-23). Note the deliberate absence of an `Endorsement`
+  # policy key below — Org3MSP is not a candidate endorsement principal
+  # anywhere in this design.
+  - &Org3
+      Name: Org3MSP
+      ID: Org3MSP
+      MSPDir: ../crypto-config/peerOrganizations/org3/msp
+      Policies:
+          Readers: { Type: Signature, Rule: "OR('Org3MSP.admin','Org3MSP.peer','Org3MSP.client')" }
+          Writers: { Type: Signature, Rule: "OR('Org3MSP.admin','Org3MSP.client')" }
+          Admins:  { Type: Signature, Rule: "OR('Org3MSP.admin')" }
+          # No Endorsement policy defined for Org3MSP — intentional (read-only,
+          # non-endorsing org). Full negative-test proof of this is NET-8's
+          # scope, not this file's.
+      AnchorPeers:
+          - Host: peer0.org3
+            Port: 7051
+
+################################################################################
+# Capabilities
+################################################################################
+# Application V2_5 per NET-1's Definition of Done. Channel/Orderer stay at
+# V2_0 — Fabric 2.5 introduced NO new Channel or Orderer capability; V2_0
+# (from the 2.0 release) remains the maximum for both groups.
+#   [docs: upgrade_to_newest_version.md#capabilities]
+# fabric-core/references/version-matrix.md: "Application V2_5 -> gates
+# PurgePrivateData()." This design calls PurgePrivateData() from NOWHERE
+# (ADR-0015 retires PDC entirely) — enabling the V2_5 capability does not
+# reintroduce PDC; it is orthogonal. No collections-config.json exists in
+# this design and none is added here.
+################################################################################
+Capabilities:
+  Channel:     &ChannelCapabilities     { V2_0: true }
+  Orderer:     &OrdererCapabilities     { V2_0: true }
+  Application: &ApplicationCapabilities { V2_5: true }
+
+################################################################################
+# Application defaults
+################################################################################
+Application: &ApplicationDefaults
+  Policies:
+      Readers:              { Type: ImplicitMeta, Rule: "ANY Readers" }
+      Writers:              { Type: ImplicitMeta, Rule: "ANY Writers" }
+      Admins:               { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+      LifecycleEndorsement: { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+      Endorsement:          { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+  Capabilities: *ApplicationCapabilities
+
+################################################################################
+# Orderer defaults — Raft consenter set + block-cutting parameters
+################################################################################
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft   # Solo/Kafka deprecated for 2.x [docs: orderer/ordering_service.md#ordering-service-implementations]
+
+  # 3 consenters, ALL Org1-operated (ADR-0012 §2, NET-DESIGN §2).
+  # Quorum = majority = 2 of 3. Crash-fault tolerance f = floor((3-1)/2) = 1:
+  # tolerates 1 node down; halts ordering on EVERY channel it serves (i.e.
+  # every tenant channel, ADR-0013) if 2+ of 3 are unavailable simultaneously.
+  #   [docs: orderer/ordering_service.md#raft-concepts]
+  # Residual risk (accepted, not hidden — ADR-0012 Consequences): because all
+  # 3 consenters are Org1-operated, Org1 alone controls network-wide ordering
+  # availability/inclusion timing, even though it cannot forge an endorsement
+  # it does not hold (the AND policy below still requires OrgClient-tenant01's
+  # signature). Recommendation (fabric-operations, post-G9, not decided here):
+  # spread these 3 nodes across >=3 availability zones within Org1's own
+  # infrastructure to harden the infrastructure half of this risk; this does
+  # NOT address the organizational half.
+  EtcdRaft:
+      Consenters:
+        - Host: orderer0.org1
+          Port: 7050
+          ClientTLSCert: ../crypto-config/ordererOrganizations/org1/orderers/orderer0.org1/tls/server.crt
+          ServerTLSCert: ../crypto-config/ordererOrganizations/org1/orderers/orderer0.org1/tls/server.crt
+        - Host: orderer1.org1
+          Port: 7050
+          ClientTLSCert: ../crypto-config/ordererOrganizations/org1/orderers/orderer1.org1/tls/server.crt
+          ServerTLSCert: ../crypto-config/ordererOrganizations/org1/orderers/orderer1.org1/tls/server.crt
+        - Host: orderer2.org1
+          Port: 7050
+          ClientTLSCert: ../crypto-config/ordererOrganizations/org1/orderers/orderer2.org1/tls/server.crt
+          ServerTLSCert: ../crypto-config/ordererOrganizations/org1/orderers/orderer2.org1/tls/server.crt
+
+  # Block-cutting parameters: Fabric-documented defaults, NOT yet benchmarked.
+  # Tuning is fabric-performance's scope (ADR-0018), not this item's.
+  BatchTimeout: 2s
+  BatchSize:
+      MaxMessageCount:   500
+      AbsoluteMaxBytes:  10 MB
+      PreferredMaxBytes: 2 MB
+
+  Policies:
+      Readers:         { Type: ImplicitMeta, Rule: "ANY Readers" }
+      Writers:         { Type: ImplicitMeta, Rule: "ANY Writers" }
+      Admins:          { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+      BlockValidation: { Type: ImplicitMeta, Rule: "ANY Writers" }
+
+################################################################################
+# Channel defaults
+################################################################################
+Channel: &ChannelDefaults
+  Policies:
+      Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+      Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+      Admins:  { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+  Capabilities: *ChannelCapabilities
+
+################################################################################
+# Profiles
+################################################################################
+# Fabric 2.5 channel-participation model (no system channel): ONE profile,
+# combining Orderer + Application sections with NO `Consortiums` key, serves
+# simultaneously as (a) the tenant channel's very first ("genesis") block and
+# (b) its application-channel membership/policy definition. Adding a second,
+# Consortiums-based "system channel genesis" profile would be the legacy
+# pre-2.3 model this design deliberately does not use — see the closing
+# comment block for the reasoning and how to invoke this profile.
+#   [docs: create_channel/create_channel_overview.rst]
+#   [docs: create_channel/create_channel_config.md#sampleappchanneletcdraft]
+#   fabric-skill-suite/skills/fabric-operations/references/examples-configs.md §3
+################################################################################
+Profiles:
+
+  TenantChannelGenesis:
+      <<: *ChannelDefaults
+      Orderer:
+          <<: *OrdererDefaults
+          Organizations:
+              - *OrdererOrg
+          Capabilities: *OrdererCapabilities
+      Application:
+          <<: *ApplicationDefaults
+          Organizations:
+              - *Org1
+              - *OrgClientTenant01
+              - *Org3
+          # Policies fully re-stated here, not just the two overridden keys —
+          # YAML anchors/merge keys (`<<:`) do NOT deep-merge nested maps; a
+          # `Policies:` key at this level REPLACES the whole ApplicationDefaults
+          # Policies map, so every key must be repeated, not just the diff.
+          Policies:
+              Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+              Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+              Admins:  { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+              # --- The load-bearing override (NET-DESIGN §5, ADR-0012 §5) ---
+              # A write is valid only with signatures from >=1 Org1MSP peer
+              # AND >=1 OrgClient-tenant01MSP peer. Org3MSP is absent from
+              # this principal set entirely — Org3 never endorses (FR-23).
+              # Neither org alone can satisfy this rule.
+              # NOTE: this is the CHANNEL-LEVEL DEFAULT only. The authoritative
+              # wiring/verification step is NET-5 (a separate backlog item),
+              # which applies this same string at chaincode-commit time via
+              # `peer lifecycle chaincode commit --signature-policy`
+              # (consumed by CC-5). Setting it here too means an omitted
+              # --signature-policy flag at commit still resolves to the
+              # correct policy, not a weaker "MAJORITY Endorsement" default —
+              # this file does not substitute for NET-5's own work.
+              LifecycleEndorsement: { Type: Signature, Rule: "AND('Org1MSP.peer','OrgClient-tenant01MSP.peer')" }
+              Endorsement:          { Type: Signature, Rule: "AND('Org1MSP.peer','OrgClient-tenant01MSP.peer')" }
+          Capabilities: *ApplicationCapabilities
+
+
+  Tenant02ChannelGenesis:
+      <<: *ChannelDefaults
+      Orderer:
+          <<: *OrdererDefaults
+          Organizations:
+              - *OrdererOrg
+          Capabilities: *OrdererCapabilities
+      Application:
+          <<: *ApplicationDefaults
+          Organizations:
+              - *Org1
+              - *OrgClientTenant02
+              - *Org3
+          Policies:
+              Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+              Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+              Admins:  { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+              LifecycleEndorsement: { Type: Signature, Rule: "AND('Org1MSP.peer','OrgClient-tenant02MSP.peer')" }
+              Endorsement:          { Type: Signature, Rule: "AND('Org1MSP.peer','OrgClient-tenant02MSP.peer')" }
+          Capabilities: *ApplicationCapabilities
+
+# Invocation (fabric-operations, post-NET-1, not executed here):
+#   configtxgen -profile TenantChannelGenesis \
+#               -channelID tenant-tenant01 \
+#               -outputBlock ../../channel-artifacts/tenant-tenant01.block \
+#               -configPath .
+#   osnadmin channel join --channelID tenant-tenant01 \
+#               --config-block ../../channel-artifacts/tenant-tenant01.block ...
+# (each of the 3 orderer0/1/2.org1 admin endpoints), then each peer's own
+# `peer channel join -b tenant-tenant01.block` — NET-3's scope, not this file's.
+
+# =============================================================================
+# RESOLVED — 2026-08-06, verified against the real Fabric 2.5 binary
+# =============================================================================
+# The flagged risk (an underscore in the Org2-role MSP ID) was real. The
+# originally-drafted ID used ADR-0013's literal text, which at the time was
+# written with an underscore. Running `configtxgen -profile TenantChannelGenesis
+# ...` against that form failed: Fabric's signature-policy-rule tokenizer
+# rejects `_` inside an MSP-ID token referenced in an `AND(...)`/`OR(...)`
+# principal. The identical profile with the hyphen form used in this file
+# (`OrgClient-tenant01MSP`) generates the genesis block with no error —
+# confirmed by actually running `cryptogen generate` then `configtxgen` via
+# the `hyperledger/fabric-tools:2.5` image, not just inferred. ADR-0013 itself
+# is corrected in place the same day with this finding (its Status stays
+# Accepted — this is a syntax fix, not a re-decision). No other file in the
+# design package still uses the underscore form as of this commit.
+# =============================================================================

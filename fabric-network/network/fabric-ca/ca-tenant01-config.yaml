@@ -1,0 +1,154 @@
+# =============================================================================
+# ca-tenant01-config.yaml — fabric-ca-server config for OrgClient-tenant01
+# =============================================================================
+# Backlog item: NET-2. See ca-org1-config.yaml's header for the full
+# authorization basis, design authority, combined-identity-plus-TLS-CA
+# rationale + alternatives, and VERIFY-schema-provenance notes — all of that
+# applies identically here and is NOT repeated (no duplication, AUTHORING-
+# CONTRACT.md §7). This header states only what differs for this org.
+#
+# NAMING (reused exactly from NET-1): domain "tenant01" -> OrgClient-tenant01MSP
+# (hyphen form — NET-1's empirical fix; see configtx.yaml's "RESOLVED" note).
+# "tenant01" is a generic placeholder tenant ID — no real company/product name.
+#
+# OWNERSHIP NOTE (NET-DESIGN §1, unchanged by this file): OrgClient-<tenantID>
+# is independently CLIENT-operated, never platform-operated. This config is
+# authored/scaffolded by fabric-architect for the prototype's single pilot
+# tenant, exactly as NET-1 scaffolded this org's configtx/crypto-config
+# entries — a real per-tenant onboarding flow would hand an equivalent config
+# to the client to run themselves (forward pointer to NET-7's tenant-
+# provisioning automation, not built here).
+#
+# ATTRIBUTE-DELEGATION NOTE: this org's bootstrap admin is the CA this design
+# uses to enroll the example HRIS-role-bearing test identity (enrollment-
+# runbook.md step (c), hris.role=admin / hris.company=tenant01) — chosen
+# because `hris.company=tenant01` is this org's own domain/company scope, the
+# most direct fit. Alternative considered: issue that identity from ca.org1
+# instead (treating it as a platform-hosted gateway identity acting on behalf
+# of an authenticated HRIS user). Rejected/deferred here because WHERE the
+# HRIS-role-bearing identity is issued is entangled with gap G-10 (Gateway-
+# client host, reopened per ADR-0014) — not settled by this item, and
+# `hris.company=tenant01` reads more naturally as this org's own identity.
+# =============================================================================
+
+version: 1.5.15   # [VERIFY] pin to the exact hyperledger/fabric-ca:1.5.x patch actually deployed
+
+port: 7054
+
+debug: false
+
+crlsizelimit: 512000
+
+tls:
+  enabled: true
+  certfile:              # [VERIFY] see ca-org1-config.yaml's tls note
+  keyfile:
+  clientauth:
+    type: noclientcert
+
+ca:
+  name: ca-tenant01
+  keyfile:
+  certfile:
+  chainfile:
+
+crl:
+  expiry: 24h
+
+registry:
+  maxenrollments: -1
+  identities:
+    - name: admin-tenant01
+      pass: tenant01AdminPW2026
+      type: client
+      affiliation: ""
+      attrs:
+        hf.Registrar.Roles: "*"                          # [VERIFY: fabric-ca docs — attributes]
+        hf.Registrar.DelegateRoles: "*"                   # [VERIFY: fabric-ca docs — attributes]
+        hf.Registrar.Attributes: "hris.role,hris.company,hf.Registrar.Roles,hf.Registrar.DelegateRoles,hf.Revoker,hf.GenCRL"
+          # [VERIFY: fabric-ca docs — attributes] — hris.role/hris.company must be listed here
+          # or enrollment-runbook.md step (c) will be rejected by the CA at register time.
+        hf.Revoker: true
+        hf.GenCRL: true
+        hf.AffiliationMgr: true
+        hf.IntermediateCA: true
+
+db:
+  type: sqlite3
+  datasource: fabric-ca-server.db
+  tls:
+    enabled: false
+
+ldap:
+  enabled: false
+
+# One top-level affiliation matching this org's domain ("tenant01"). Distinct
+# from NodeOU role classification and from the hris.* ABAC attributes — see
+# ca-org1-config.yaml's affiliations note (applies identically here).
+affiliations:
+  tenant01:
+    - client
+
+signing:
+  default:
+    usage:
+      - digital signature
+    expiry: 8760h
+  profiles:
+    ca:
+      usage:
+        - cert sign
+        - crl sign
+      expiry: 131400h
+      caconstraint:
+        isca: true
+        maxpathlen: 0
+    tls:
+      usage:
+        - signing
+        - key encipherment
+        - server auth
+        - client auth
+      expiry: 8760h
+
+csr:
+  cn: ca-tenant01
+  keyrequest:
+    algo: ecdsa
+    size: 256
+  names:
+    - C: ID
+      ST: Jakarta
+      O: OrgClient-tenant01
+      OU: client
+  hosts:
+    - localhost
+    - 127.0.0.1
+    - ca.tenant01           # matches this CA's docker-compose service name/hostname
+  ca:
+    expiry: 131400h
+    pathlength: 1
+
+idemix:
+  rhpoolsize: 100
+  nonceexpiration: 15s
+  nonceweeksize: 60          # inert — see ca-org1-config.yaml's idemix note
+
+# See ca-org1-config.yaml's bccsp note: SW is a design-stage placeholder, not
+# a production HSM decision. TLS keys stay file-based unconditionally.
+bccsp:
+  default: SW
+  sw:
+    hash: SHA2
+    security: 256
+
+cfg:
+  identities:
+    allowremove: false
+  affiliations:
+    allowremove: false
+
+operations:
+  listenAddress: 127.0.0.1:9443
+  tls:
+    enabled: false          # [VERIFY] — not exposed in ca-docker-compose.yaml; out of NET-2 scope

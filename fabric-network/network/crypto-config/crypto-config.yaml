@@ -1,0 +1,111 @@
+# =============================================================================
+# crypto-config.yaml — cryptogen spec (dev-grade, THROWAWAY crypto material)
+# =============================================================================
+# Backlog item: NET-1 (agent-suite/06-roadmap/implementation-backlog.md)
+#
+# PURPOSE — read this before touching this file. This is used ONLY to
+# structurally validate ../configtx/configtx.yaml at this build step, via:
+#   cryptogen generate --config=./crypto-config.yaml --output=.
+# (run with this file's own directory as cwd, so cryptogen's generated
+# ordererOrganizations/ and peerOrganizations/ subtrees land alongside this
+# file, matching configtx.yaml's `../crypto-config/...` MSPDir references).
+#
+# THIS IS NOT THE PRODUCTION IDENTITY PATH. `cryptogen` issues test-only,
+# non-revocable certs from a throwaway local CA — never used in production
+# [docs: deploypeer/peerplan.md, deployorderer/ordererplan.md]. Fabric-CA
+# enrollment, NodeOU role/attribute conventions (HRIS role as an X.509
+# attribute), and TLS-CA topology are NET-2's scope, a separate, later
+# backlog item — do NOT extend this file with CA server config, enrollment
+# profiles, or attribute mappings; that boundary is deliberate, not an
+# oversight.
+#
+# Design authority (structurally mirrored from ../configtx/configtx.yaml —
+# same MSP IDs, same node counts; see that file's own header for the ADR/
+# NET-DESIGN citations, not repeated here):
+#   - agent-suite/00-architecture/solution/fabric-network-design.md §1/§2
+#   - agent-suite/05-adr/ADR-0012-consortium-three-org-topology.md
+#   - agent-suite/05-adr/ADR-0013-channel-per-tenant.md
+#
+# Confidentiality register (standing constraint): "tenant01" is a generic
+# placeholder tenant ID. No real company/product/table/column name appears
+# anywhere in this file.
+#
+# NAMING NOTE: the `Name:` fields below are cryptogen folder/label inputs,
+# NOT the Fabric MSP-ID validation-checked `ID:` field from configtx.yaml
+# (cryptogen does not run Fabric's MSP-identifier regex check — it only
+# builds filesystem paths and X.509 CN/SAN strings from these values, so an
+# underscore here would not have been the same risk as the one that turned
+# out to be real in ../configtx/configtx.yaml). Written with a hyphen anyway
+# — `OrgClient-tenant01` — for 1:1 visual traceability to the corrected MSP
+# IDs now used there (see that file's "RESOLVED" note and ADR-0013's
+# 2026-08-06 technical-correction callout).
+#
+# Domain fields are deliberately short/undotted (`org1`, `tenant01`, `org3`)
+# so cryptogen's `<hostname>.<Domain>` concatenation produces hostnames that
+# match configtx.yaml's `Host:`/`OrdererEndpoints`/`AnchorPeers` entries
+# EXACTLY: peer0.org1, peer1.org1, orderer0.org1, orderer1.org1, orderer2.org1,
+# peer0.tenant01, peer0.org3. This is a self-signed test CA — cryptogen does
+# not resolve these against real DNS.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# OrdererOrgs — 3 etcdraft consenters, ALL Org1-operated (ADR-0012 §2).
+# One ordering service shared across every tenant channel, not fanned out per
+# tenant (NET-DESIGN §2) — this file provisions it once, matching that.
+# -----------------------------------------------------------------------------
+OrdererOrgs:
+  - Name: OrdererOrg
+    Domain: org1
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer0   # -> orderer0.org1
+      - Hostname: orderer1   # -> orderer1.org1
+      - Hostname: orderer2   # -> orderer2.org1
+
+# -----------------------------------------------------------------------------
+# PeerOrgs
+# -----------------------------------------------------------------------------
+PeerOrgs:
+
+  # Org1 — platform org. 2 peers, endorse + commit, LevelDB (ADR-0007).
+  - Name: Org1
+    Domain: org1
+    EnableNodeOUs: true
+    Template:
+      Count: 2        # -> peer0.org1, peer1.org1
+    Users:
+      Count: 1         # one enrolled test user in addition to the org admin
+
+  # OrgClient-tenant01 — templated enterprise-client org (ADR-0013's
+  # OrgClient-<tenantID> role), instantiated ONCE here for the single pilot
+  # tenant "tenant01" (generic placeholder tenant ID — no real company or
+  # product name). 1 peer per tenant, independently client-operated.
+  - Name: OrgClient-tenant01
+    Domain: tenant01
+    EnableNodeOUs: true
+    Template:
+      Count: 1         # -> peer0.tenant01
+    Users:
+      Count: 1
+
+  # Org3 — auditor org. 1 read-only peer, never endorses (ADR-0012 §1/§5).
+  - Name: Org3
+    Domain: org3
+    EnableNodeOUs: true
+    Template:
+      Count: 1         # -> peer0.org3
+    Users:
+      Count: 1
+
+# =============================================================================
+# Structural cross-check against ../configtx/configtx.yaml (self-audit, not
+# executed — the orchestrator's cryptogen/configtxgen run is the real check):
+#   MSP ID          | node count | matches configtx.yaml?
+#   ----------------|------------|------------------------
+#   OrdererMSP      | 3 orderers | yes (orderer0/1/2.org1)
+#   Org1MSP         | 2 peers    | yes (peer0/1.org1)
+#   OrgClient-tenant01MSP | 1 peer | yes (peer0.tenant01)
+#   Org3MSP         | 1 peer     | yes (peer0.org3)
+# No PDC / collections-config.json referenced anywhere (ADR-0015) — this file
+# generates identity/TLS material only, never collection definitions.
+# =============================================================================
