@@ -1,0 +1,21 @@
+test:
+  name: pt3-verify-read-latency
+  description: >
+    PT-3: verify-read (Evaluate/GetProfileSectionRecord) latency. Sub-second
+    target per FR-12. No ordering involved -- a separate, lighter round from
+    PT-1/2.
+  workers:
+    number: 5
+  rounds:
+    - label: pt3-read-100tps
+      txNumber: 1000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: ./workload/read.js
+        arguments:
+          tenantId: tenant01
+          poolSize: 20
+          roundLabel: pt3-read-100tps

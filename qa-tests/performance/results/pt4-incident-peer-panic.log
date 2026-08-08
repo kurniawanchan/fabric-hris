@@ -1,0 +1,145 @@
+PT-4 incident evidence (QA-4) -- real logs/commands captured during this benchmark session.
+See RESULTS.md section 3 for the narrative. All content below is copy-pasted from actual
+`docker logs` / `docker ps` / `docker stats` / `df` output during this session, not paraphrased.
+
+=====================================================================
+1. Channel membership check BEFORE any PT-4 action (peer0.org1, peer0.tenant02)
+=====================================================================
+
+$ docker exec fabric-tools-net sh -c "... CORE_PEER_ADDRESS=peer0.org1:7051 ... peer channel list"
+Channels peers has joined:
+tenant-tenant01
+tenant-tenant02
+
+$ docker exec fabric-tools-net sh -c "... CORE_PEER_ADDRESS=peer0.tenant02:7051 ... peer channel list"
+Channels peers has joined:
+tenant-tenant02
+
+=====================================================================
+2. Install on peer0.tenant02 -- succeeded, package ID matched peer0.org1's existing install
+=====================================================================
+
+$ docker exec fabric-tools-net sh -c "... peer lifecycle chaincode install /cc/employeeprofilerecord.tar.gz"
+Installed remotely: response:<status:200 payload:"\nZemployeeprofilerecord_1.0:d7fee017895dc11995d1886e622224e6e744d606f25350cf523eee35e7b5f23b\022\031employeeprofilerecord_1.0" >
+Chaincode code package identifier: employeeprofilerecord_1.0:d7fee017895dc11995d1886e622224e6e744d606f25350cf523eee35e7b5f23b
+
+$ docker exec fabric-tools-net sh -c "... CORE_PEER_ADDRESS=peer0.org1:7051 ... peer lifecycle chaincode queryinstalled"
+Installed chaincodes on peer:
+Package ID: employeeprofilerecord_1.0:d7fee017895dc11995d1886e622224e6e744d606f25350cf523eee35e7b5f23b, Label: employeeprofilerecord_1.0
+
+(Identical package ID on both peers -- confirms the existing employeeprofilerecord-ccaas
+container, bound to that package ID, is capable of serving both channels.)
+
+=====================================================================
+3. approveformyorg for Org1MSP on tenant-tenant02 -- the trigger
+=====================================================================
+
+$ docker exec fabric-tools-net sh -c "... CORE_PEER_ADDRESS=peer0.org1:7051 ... peer lifecycle chaincode approveformyorg \
+    -o orderer0.org1:7050 --tls --clientauth ... \
+    --channelID tenant-tenant02 --name employeeprofilerecord --version 1.0 \
+    --package-id employeeprofilerecord_1.0:d7fee017895dc11995d1886e622224e6e744d606f25350cf523eee35e7b5f23b \
+    --sequence 1 --signature-policy \"AND('Org1MSP.peer','OrgClient-tenant02MSP.peer')\""
+
+Error: error receiving from deliver filtered at peer0.org1:7051: rpc error: code = Unavailable desc = error reading from server: EOF
+
+(The approve transaction itself was broadcast to and ordered successfully -- orderer0.org1's log
+confirms block [1] was cut for channel=tenant-tenant02 -- but the --waitForEvent listener failed
+because peer0.org1 crashed while trying to process/commit that very block. See below.)
+
+$ docker exec fabric-tools-net sh -c "... CORE_PEER_ADDRESS=peer0.tenant02:7051 ... peer lifecycle chaincode approveformyorg ..."
+Error: failed to retrieve endorser client for approveformyorg: endorser client failed to connect
+to peer0.tenant02:7051: failed to create new connection: connection error: desc = "transport:
+error while dialing: dial tcp 172.21.0.11:7051: connect: connection refused"
+
+(peer0.tenant02 was already down by the time this second command ran -- it crashed first,
+independently receiving the same bad block via gossip.)
+
+=====================================================================
+4. peer0.org1's own log line confirming which block/channel triggered the crash
+=====================================================================
+
+[endorser] callChaincode -> finished chaincode: _lifecycle duration: 27ms channel=tenant-tenant02 txID=f0757d00
+[gossip.privdata] StoreBlock -> Received block [1] from buffer channel=tenant-tenant02
+[gossip.privdata] RetrievePvtdata -> Successfully fetched (or marked to reconcile later) all 1
+  eligible collection private write sets for block [1] (0 from local cache, 1 from transient
+  store, 0 from other peers) channel=tenant-tenant02
+
+=====================================================================
+5. The panic itself -- IDENTICAL on all four affected peers
+   (peer0.org1, peer1.org1, peer0.org3, peer0.tenant02)
+=====================================================================
+
+[gossip.state] commitBlock -> Got error while committing(unexpected Previous block hash.
+Expected PreviousHash = [f6da9cd13eead4f06d6f936dd7d393a94b4e9997efbb068e9e61352eb6757da3],
+PreviousHash referred in the latest block=
+[e0240ef9b9a77a718dfc5a2290ca350327f52867700cd814113a02eb9b2ed059]
+...
+panic: Cannot commit block to the ledger due to unexpected Previous block hash.
+Expected PreviousHash = [f6da9cd13eead4f06d6f936dd7d393a94b4e9997efbb068e9e61352eb6757da3],
+PreviousHash referred in the latest block=
+[e0240ef9b9a77a718dfc5a2290ca350327f52867700cd814113a02eb9b2ed059]
+	github.com/hyperledger/fabric/common/ledger/blkstorage.(*blockfileMgr).addBlock
+	github.com/hyperledger/fabric/common/ledger/blkstorage.(*BlockStore).AddBlock
+	github.com/hyperledger/fabric/core/ledger/kvledger.(*kvLedger).commitToPvtAndBlockStore
+	github.com/hyperledger/fabric/core/ledger/kvledger.(*kvLedger).commit
+	github.com/hyperledger/fabric/core/ledger/kvledger.(*kvLedger).CommitLegacy
+	github.com/hyperledger/fabric/core/committer.(*LedgerCommitter).CommitLegacy
+	github.com/hyperledger/fabric/gossip/privdata.(*coordinator).StoreBlock
+	github.com/hyperledger/fabric/gossip/state.(*GossipStateProviderImpl).commitBlock
+	github.com/hyperledger/fabric/gossip/state.(*GossipStateProviderImpl).deliverPayloads
+
+Interpretation: these peers' locally-stored block 0 (genesis) for tenant-tenant02 hashes to
+f6da9cd1... The incoming block 1 (freshly cut by the orderer in response to the Org1 approval
+tx) declares its own PreviousHash field as e0240ef9... -- i.e. the orderer's actual chain for
+this channel does NOT descend from the genesis these peers joined with. A genuine, pre-existing
+genesis/ledger fork on the previously-dormant tenant-tenant02 channel, first exposed the moment
+any real block flow was triggered against it.
+
+=====================================================================
+6. docker ps -a -- before vs after (peer status)
+=====================================================================
+
+BEFORE (start of this benchmark session):
+peer0.org1        Up
+peer1.org1        Up
+peer0.org3        Up
+peer0.tenant01    Up
+peer0.tenant02    Up
+orderer0/1/2.org1 Up
+
+AFTER (following the PT-4 approveformyorg attempt, and one manual restart attempt each on
+peer0.org1 and peer0.tenant02 to check for self-recovery -- both re-crashed within seconds):
+
+peer0.tenant02   Exited (2)
+peer0.org3       Exited (2)
+peer0.org1       Exited (2)
+peer1.org1       Exited (2)
+peer0.tenant01   Up            <- unaffected, not a tenant-tenant02 member
+orderer0/1/2.org1 Up           <- unaffected
+employeeprofilerecord-ccaas Up <- unaffected
+ipfs0/ipfs1/cluster0/cluster1  Up <- unaffected
+
+$ docker inspect peer0.org1 --format '{{.HostConfig.RestartPolicy.Name}}'
+no
+
+(Restart policy is "no" -- these containers are not auto-crash-looping burning CPU right now;
+they are sitting Exited, which was left as-is deliberately rather than repeatedly restarting
+them to "try again" -- see RESULTS.md 3.3 for why no further repair was attempted.)
+
+=====================================================================
+7. Resource-contention snapshot taken during the PT-1 diagnostic round (unrelated to, but
+   contemporaneous with, this incident -- see RESULTS.md section 6)
+=====================================================================
+
+$ docker stats --no-stream
+NAME             CPU %     MEM USAGE / LIMIT
+peer0.org1       128.61%   349.6MiB / 7.75GiB
+peer1.org1       91.22%    140.5MiB / 7.75GiB
+peer0.tenant02   51.65%    73.63MiB / 7.75GiB
+peer0.org3       17.33%    131.5MiB / 7.75GiB
+peer0.tenant01   16.21%    168.1MiB / 7.75GiB
+ipfs1            72.90%    32.92MiB / 7.75GiB
+
+$ df -h /System/Volumes/Data
+Filesystem      Size  Used  Avail Capacity  Mounted on
+/dev/disk3s5    460Gi 397Gi  7.3Gi     99%  /System/Volumes/Data

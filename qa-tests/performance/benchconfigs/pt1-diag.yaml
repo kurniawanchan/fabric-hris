@@ -1,0 +1,17 @@
+test:
+  name: pt1-diag
+  description: Diagnostic single-round runs to characterize write latency/throughput before committing to the full PT-1/PT-2 matrix.
+  workers:
+    number: 5
+  rounds:
+    - label: pt1-diag-20tps-5w
+      txDuration: 15
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 20
+      workload:
+        module: ./workload/write.js
+        arguments:
+          tenantId: tenant01
+          roundLabel: pt1-diag-20tps-5w

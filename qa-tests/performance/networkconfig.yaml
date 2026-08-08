@@ -1,0 +1,56 @@
+##
+# Hyperledger Caliper 0.7.1 "fabric" connector configuration (network-config v2 schema),
+# bound to the Fabric 2.5 SDK line (@hyperledger/fabric-gateway@1.7.1, installed via
+# `npx caliper bind --caliper-bind-sut fabric:2.5` -- NOT fabric-network@2.2, per
+# ADR-0018 / test-strategy.md's explicit "not 2.2" instruction).
+#
+# caliper.sutOptions.mutualTls: true is REQUIRED against this live network -- every
+# peer sets CORE_PEER_TLS_CLIENTAUTHREQUIRED=true (network-docker-compose.yaml), so
+# every gRPC client (including the Fabric Gateway service) must present a client TLS
+# certificate or the TLS handshake never completes. Upstream caliper-fabric 0.7.1 (and
+# the latest 0.8.0-unstable snapshot, both checked) never sends a client certificate at
+# all in the peer-gateway connector -- see the "qa-tests/performance mutual-TLS patch
+# (QA-4)" comments in node_modules/@hyperledger/caliper-fabric/lib/connector-versions/
+# peer-gateway/PeerGateway.js and .../connector-configuration/ConnectionProfileDefinition.js
+# for the (in-scope, node_modules-local) patch this workspace applies to add it, and
+# RESULTS.md's Methodology section for the full empirical writeup of why this was
+# necessary.
+##
+name: hris-employeeprofilerecord-benchmark
+version: "2.0.0"
+caliper:
+  blockchain: fabric
+  sutOptions:
+    mutualTls: true
+
+channels:
+  - channelName: tenant-tenant01
+    contracts:
+      - id: employeeprofilerecord
+
+organizations:
+  - mspid: Org1MSP
+    identities:
+      certificates:
+        - name: admin
+          admin: true
+          clientPrivateKey:
+            path: ../../fabric-network/network/crypto-config/peerOrganizations/org1/users/Admin@org1/msp/keystore/priv_sk
+          clientSignedCert:
+            path: ../../fabric-network/network/crypto-config/peerOrganizations/org1/users/Admin@org1/msp/signcerts/Admin@org1-cert.pem
+    connectionProfile:
+      path: ./ccp/org1-ccp.json
+      discover: false
+
+  - mspid: OrgClient-tenant01MSP
+    identities:
+      certificates:
+        - name: admin
+          admin: true
+          clientPrivateKey:
+            path: ../../fabric-network/network/crypto-config/peerOrganizations/tenant01/users/Admin@tenant01/msp/keystore/priv_sk
+          clientSignedCert:
+            path: ../../fabric-network/network/crypto-config/peerOrganizations/tenant01/users/Admin@tenant01/msp/signcerts/Admin@tenant01-cert.pem
+    connectionProfile:
+      path: ./ccp/tenant01-ccp.json
+      discover: false

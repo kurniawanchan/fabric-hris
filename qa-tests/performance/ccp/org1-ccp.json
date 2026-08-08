@@ -1,0 +1,33 @@
+{
+  "name": "org1-ccp",
+  "version": "1.0",
+  "client": { "organization": "Org1" },
+  "organizations": {
+    "Org1": {
+      "mspid": "Org1MSP",
+      "peers": ["peer0.org1"]
+    }
+  },
+  "peers": {
+    "peer0.org1": {
+      "url": "grpcs://localhost:7051",
+      "tlsCACerts": {
+        "path": "../../fabric-network/network/crypto-config/peerOrganizations/org1/tlsca/tlsca.org1-cert.pem"
+      },
+      "clientTlsCert": {
+        "path": "../../fabric-network/network/crypto-config/peerOrganizations/org1/users/Admin@org1/tls/client.crt"
+      },
+      "clientTlsKey": {
+        "path": "../../fabric-network/network/crypto-config/peerOrganizations/org1/users/Admin@org1/tls/client.key"
+      },
+      "grpcOptions": {
+        "ssl-target-name-override": "peer0.org1"
+      }
+    }
+  },
+  "channels": {
+    "tenant-tenant01": {
+      "peers": { "peer0.org1": {} }
+    }
+  }
+}

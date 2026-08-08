@@ -1,0 +1,11 @@
+{
+  "name": "hris-caliper-benchmark",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hyperledger Caliper performance benchmark workspace for employeeprofilerecord chaincode (QA-4 throughput/latency, QA-6 MVCC contention). Run benchmarks ALONE on a quiet network; see RESULTS.md and docs/REPRODUCING-RESULTS.md.",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.13.1",
+    "@hyperledger/caliper-cli": "0.7.1",
+    "@hyperledger/fabric-gateway": "^1.7.1"
+  }
+}

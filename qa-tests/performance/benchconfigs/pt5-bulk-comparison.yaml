@@ -1,0 +1,39 @@
+test:
+  name: pt5-bulk-batched-vs-sequential
+  description: >
+    PT-5: a batched bulk-write scenario (e.g. an annual salary-band adjustment
+    across many employees) vs. one-by-one blocking calls, same total record
+    count (batchSize x txNumber), same argument shape as PT-1's write.js.
+    Sized small (batchSize=3, txNumber=2, 1 worker) deliberately: PT-1 already
+    established this specific live environment takes 20-60+ seconds per
+    endorse->commit round trip under any concurrent load, so a naive
+    "batchSize=20" sequential round could take 10+ minutes for one tick. This
+    keeps both rounds bounded to a few minutes while still producing a valid,
+    honest batched-vs-sequential comparison at this environment's real
+    per-transaction latency.
+  workers:
+    number: 1
+  rounds:
+    - label: pt5-bulk-batched
+      txNumber: 2
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 1
+      workload:
+        module: ./workload/bulk-batched.js
+        arguments:
+          tenantId: tenant01
+          batchSize: 3
+
+    - label: pt5-bulk-sequential
+      txNumber: 2
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 1
+      workload:
+        module: ./workload/bulk-sequential.js
+        arguments:
+          tenantId: tenant01
+          batchSize: 3

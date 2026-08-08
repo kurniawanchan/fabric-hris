@@ -1,0 +1,86 @@
+##
+# QA-6 -- real Fabric MVCC_READ_CONFLICT rate for concurrent writes targeting the
+# EXACT SAME (employeeID, profileSection) head key (data-model.md §5.2's
+# previously-[ASSUMPTION]-tagged "concurrent-write rate for the *same* employee's
+# *same* section"). Deliberately DIFFERENT from QA-4's PT-1 (workload/write.js),
+# which uses a fresh employeeID per write specifically to AVOID contention.
+#
+# Caliper 0.7.1 fixes a single `workers.number` for the whole benchmark config --
+# there is no per-round worker-count override (verified by inspection of
+# round-orchestrator.js / worker-orchestrator.js: testSpecification.numb /
+# this.number is computed once per round against the SAME global worker pool).
+# To still get three distinct, controlled concurrency levels (N=2/5/10) out of
+# one fixed-size pool of 10 workers, every round below hands all 10 workers
+# exactly one transaction each (txNumber: 10). Inside workload/hotkey.js, only
+# the first `activeWorkers` (the round's N) actually race for the shared hot
+# key; the rest fire an uncontended, fresh-key filler write purely so Caliper's
+# fixed-transaction-count loop terminates for every worker (a worker that never
+# calls sendRequests() never increments stats.getTotalSubmittedTx() and the
+# round hangs forever -- see caliper-worker.js's `_runFixedNumber`). Filler
+# transactions never touch the hot key and are excluded from the QA-6 analysis
+# -- see QA6-RESULTS.md.
+#
+# `employeeId` per round is a fixed, hardcoded, never-before-used-on-chain
+# random ID (picked once, at authoring time, specifically so every worker
+# process in the round computes the identical racing key from roundArguments,
+# and so a genuine "no head exists yet" read holds for every one of them at
+# endorsement time). Re-running a round after it has already produced a
+# winning commit would no longer be a genuine first-write race for that key --
+# pick a fresh employeeId before any re-run.
+##
+test:
+  name: qa6-mvcc-contention
+  description: >
+    QA-6: N concurrent workers all submit RecordProfileSection for the exact
+    same, brand-new (employeeID, profileSection) pair (prevHash="") in one
+    round, at N=2/5/10. Expect exactly 1 commit success and N-1 Fabric
+    MVCC_READ_CONFLICT rejections per round -- see QA6-RESULTS.md for the
+    real observed outcome, including whether it actually matched that
+    expectation.
+  workers:
+    number: 10
+  rounds:
+    - label: qa6-hotkey-n2
+      txNumber: 10
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: ./workload/hotkey.js
+        arguments:
+          tenantId: tenant01
+          roundLabel: qa6-hotkey-n2
+          employeeId: qa6-hotkey-n2-150728f90f4e7c0688e4a9de0906a779
+          profileSection: PERSONAL
+          activeWorkers: 2
+
+    - label: qa6-hotkey-n5
+      txNumber: 10
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: ./workload/hotkey.js
+        arguments:
+          tenantId: tenant01
+          roundLabel: qa6-hotkey-n5
+          employeeId: qa6-hotkey-n5-19300fd4230d104c84d74d095326b166
+          profileSection: PERSONAL
+          activeWorkers: 5
+
+    - label: qa6-hotkey-n10
+      txNumber: 10
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: ./workload/hotkey.js
+        arguments:
+          tenantId: tenant01
+          roundLabel: qa6-hotkey-n10
+          employeeId: qa6-hotkey-n10-db45e8c26a240e0057fdb505eb8f0dbb
+          profileSection: PERSONAL
+          activeWorkers: 10

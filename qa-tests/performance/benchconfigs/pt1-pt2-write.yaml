@@ -1,0 +1,61 @@
+test:
+  name: pt1-pt2-write-throughput-latency
+  description: >
+    PT-1: profile-write throughput at load points 200/500/1000/2000 tx/sec
+    (PRD NFR-1: <3s @ 500 TPS). PT-2: write latency percentiles (p50/p95/p99)
+    for the same endorse->commit path, AND(Org1MSP.peer, OrgClient-tenant01MSP.peer).
+    Each round runs for a fixed 20s wall-clock window at its requested rate;
+    Caliper reports ACHIEVED throughput/latency separately from the requested
+    rate -- both are captured verbatim in RESULTS.md, including any shortfall
+    or failures at higher load points this laptop's single-node-per-org Fabric
+    network + IPFS stack cannot sustain.
+  workers:
+    number: 25
+  rounds:
+    - label: pt1-write-200tps
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 200
+      workload:
+        module: ./workload/write.js
+        arguments:
+          tenantId: tenant01
+          roundLabel: pt1-write-200tps
+
+    - label: pt1-write-500tps
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 500
+      workload:
+        module: ./workload/write.js
+        arguments:
+          tenantId: tenant01
+          roundLabel: pt1-write-500tps
+
+    - label: pt1-write-1000tps
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 1000
+      workload:
+        module: ./workload/write.js
+        arguments:
+          tenantId: tenant01
+          roundLabel: pt1-write-1000tps
+
+    - label: pt1-write-2000tps
+      txDuration: 20
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 2000
+      workload:
+        module: ./workload/write.js
+        arguments:
+          tenantId: tenant01
+          roundLabel: pt1-write-2000tps
