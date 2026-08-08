@@ -1,0 +1,31 @@
+# ClusterIP (internal-only) Service load-balancing across ALL kubo pods'
+# API port. Deliberately NOT used by the production pin-durability path —
+# see values.yaml's kubo.apiPort comment and README.md: durability requires
+# addressing EACH node explicitly (pin-on-every-node), so a client that
+# needs the N-way explicit-pin property must enumerate the per-ordinal
+# headless DNS names, not go through this load-balanced Service (which
+# would route each request to an arbitrary single node, defeating the
+# "pin confirmed on every node" property `write-path-integration/
+# ipfsclient` already relies on for 2 nodes today).
+#
+# This Service exists for ops/debug convenience only (e.g. a port-forward
+# for `ipfs id`/`ipfs pin ls` against "some kubo node" without needing to
+# remember an ordinal) — type: ClusterIP, never LoadBalancer/NodePort/
+# Ingress. No public exposure of the raw kubo HTTP API in this chart, full
+# stop; that API has no built-in authentication of its own.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-kubo-api
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kubo
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: kubo
+  ports:
+    - name: api
+      port: {{ .Values.kubo.apiPort }}
+      targetPort: api

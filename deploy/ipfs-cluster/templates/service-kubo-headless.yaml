@@ -1,0 +1,27 @@
+# Headless (clusterIP: None) Service — gives every kubo pod, regardless of
+# which of the N single-replica StatefulSets created it (see
+# statefulset-kubo.yaml's header comment for why N StatefulSets instead of
+# one N-replica StatefulSet), a stable DNS name of the form
+# "<fullname>-kubo-<ordinal>.<this-service-name>.<namespace>.svc.cluster.local".
+# This is what _helpers.tpl's kuboPodFQDN template constructs, and what the
+# paired ipfs-cluster peer's CLUSTER_IPFSHTTP_NODEMULTIADDRESS points at.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-kubo-headless
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kubo
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: kubo
+  ports:
+    - name: swarm
+      port: {{ .Values.kubo.swarmPort }}
+      targetPort: swarm
+    - name: api
+      port: {{ .Values.kubo.apiPort }}
+      targetPort: api

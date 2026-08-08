@@ -1,0 +1,40 @@
+# Replicates ipfs-cluster/init-hooks/disable-autoconf.sh VERBATIM — same
+# fix, same mechanism (kubo's own /container-init.d hook directory, read
+# from the image's entrypoint, executed AFTER `ipfs init` as the
+# already-privilege-dropped "ipfs" user). Do NOT reinvent this via
+# overriding the container's command/entrypoint — that was this project's
+# OWN documented failed second attempt (see docker-compose.yaml's comment on
+# the ipfs0 service: "NOT by overriding entrypoint/command, which skips that
+# script's own permission handling entirely"). Kubernetes changes nothing
+# about that finding — it's a property of the kubo image's own entrypoint
+# script, independent of the orchestrator running it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-disable-autoconf
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+data:
+  disable-autoconf.sh: |
+    #!/bin/sh
+    # Runs via kubo's own /container-init.d hook mechanism, AFTER ipfs init,
+    # as the correct "ipfs" user with correct permissions already applied by
+    # the image's own entrypoint script — avoids the permission problems of
+    # bypassing that script entirely (found the hard way).
+    #
+    # kubo 0.43 ships a NEW "AutoConf" system: several config fields default to
+    # the literal string "auto", resolved to real values at runtime by AutoConf
+    # — Bootstrap/DNS.Resolvers/Routing.DelegatedRouters/Ipns.DelegatedPublishers.
+    # Simply disabling AutoConf (needed on a private swarm — see the compose
+    # file's own comment) leaves those "auto" placeholders meaningless and the
+    # daemon refuses to start. For a PRIVATE cluster we do not want the public
+    # bootstrap/resolver/router defaults anyway, so clear all four explicitly
+    # rather than resolve them — found empirically, this exact combination is
+    # what the real 0.43 image actually requires, not documented anywhere this
+    # project's pinned corpus covers (that corpus is Fabric-only).
+    ipfs config AutoConf.Enabled --json false
+    ipfs bootstrap rm --all
+    ipfs config Bootstrap --json '[]'
+    ipfs config DNS.Resolvers --json '{}'
+    ipfs config Routing.DelegatedRouters --json '[]'
+    ipfs config Ipns.DelegatedPublishers --json '[]'

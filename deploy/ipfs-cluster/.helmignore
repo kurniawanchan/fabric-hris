@@ -1,0 +1,8 @@
+# Standard Helm packaging excludes.
+.git/
+.gitignore
+*.swp
+*.bak
+*.tmp
+*.orig
+.DS_Store

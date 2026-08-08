@@ -1,0 +1,132 @@
+# N single-replica StatefulSets, ordinals 0..kubo.nodeCount-1 — NOT one
+# StatefulSet with `replicas: N`. Reason: a single StatefulSet's pod
+# template is homogeneous across all its replicas (one shared env/volume
+# spec applied to every ordinal); this design needs per-ordinal identity
+# (each kubo node is independently addressed by the N-way explicit-pin
+# client — see service-kubo-api.yaml's comment) but every node's actual
+# CONFIG is otherwise identical (same swarm key, same disable-autoconf
+# hook, same image) — there is no per-ordinal env var this particular
+# resource actually needs to vary. A homogeneous N-replica StatefulSet
+# would in fact work fine for kubo alone. It is templated as N separate
+# single-replica StatefulSets here instead ONLY for symmetry with
+# statefulset-ipfs-cluster.yaml, which genuinely CANNOT use one homogeneous
+# N-replica StatefulSet (each cluster peer's CLUSTER_IPFSHTTP_
+# NODEMULTIADDRESS must point at a DIFFERENT, specific kubo ordinal's own
+# DNS name — plain env vars are fixed per pod TEMPLATE, not per ordinal, and
+# K8s has no built-in per-replica env substitution for StatefulSets). Kept
+# consistent across both resources rather than mixing patterns, so an
+# operator debugging one understands the other the same way.
+{{- $count := int .Values.kubo.nodeCount }}
+{{- range $i := until $count }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" $ }}-kubo-{{ $i }}
+  labels:
+    {{- include "ipfs-private-cluster.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: kubo
+    ipfs-cluster.hris/ordinal: "{{ $i }}"
+spec:
+  serviceName: {{ include "ipfs-private-cluster.fullname" $ }}-kubo-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: kubo
+      ipfs-cluster.hris/ordinal: "{{ $i }}"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: kubo
+        ipfs-cluster.hris/ordinal: "{{ $i }}"
+    spec:
+      # Stable hostname so this pod's own DNS name is deterministic
+      # ("<fullname>-kubo-<i>-0.<headless-svc>...", the "-0" being the
+      # StatefulSet's own single-replica ordinal) — kept distinct from the
+      # "-kubo-<i>" naming used for the STATEFULSET/pod-prefix itself; see
+      # _helpers.tpl's kuboPodFQDN, which is the authoritative address
+      # every consumer (the paired cluster peer, README's client-config
+      # example) actually uses. hostname/subdomain below make that address
+      # resolvable.
+      hostname: {{ include "ipfs-private-cluster.fullname" $ }}-kubo-{{ $i }}
+      subdomain: {{ include "ipfs-private-cluster.fullname" $ }}-kubo-headless
+      securityContext:
+        # [VERIFY]: kubo's published images run their entrypoint as a
+        # non-root "ipfs" user after the privilege-drop step referenced
+        # throughout this file (the dev docker-compose.yaml doesn't need to
+        # set this at all — bind-mounted named volumes there don't hit the
+        # same ownership requirement Kubernetes' fsGroup mechanism exists
+        # for). uid/gid 1000 is the commonly-documented default for this
+        # image family but was NOT independently re-verified against the
+        # exact pulled digest for this item — confirm against the real
+        # image (`docker run --rm ipfs/kubo:<tag> id`) before relying on
+        # this value in a non-throwaway environment; if it's wrong, the
+        # PVC mount will be unwritable after the entrypoint's privilege
+        # drop, the same class of permission failure this file's other
+        # comments already document being found and fixed once (the
+        # swarm-key mount, not this), not a new kind of risk this chart
+        # introduces.
+        fsGroup: 1000
+      containers:
+        - name: kubo
+          image: "{{ $.Values.image.kubo.repository }}:{{ $.Values.image.kubo.tag }}"
+          imagePullPolicy: {{ $.Values.image.kubo.pullPolicy }}
+          # No command/args override — the base image's own entrypoint
+          # script must run unmodified (init + privilege-drop + the
+          # /container-init.d hook scan). See configmap-disable-autoconf.yaml's
+          # header comment: overriding entrypoint here was this project's
+          # own documented failed second attempt in the dev docker-compose
+          # file, not a hypothetical risk.
+          env:
+            - name: LIBP2P_FORCE_PNET
+              value: "1" # refuse any connection outside the private swarm — the actual private-network enforcement, not just "having a swarm key file" (ipfs-cluster/docker-compose.yaml's own comment, carried forward verbatim).
+            - name: IPFS_SWARM_KEY_FILE
+              value: /swarm-key-source/swarm.key # the entrypoint script's OWN documented mechanism for installing swarm.key with correct ownership during `ipfs init` — NOT bind-mounting directly at /data/ipfs/swarm.key (that was this project's own documented first failed attempt: a host/Secret-mounted RO file can't be chowned to the container's ipfs user once the entrypoint's privilege-drop runs).
+          ports:
+            - name: swarm
+              containerPort: {{ $.Values.kubo.swarmPort }}
+            - name: api
+              containerPort: {{ $.Values.kubo.apiPort }}
+          volumeMounts:
+            - name: data
+              mountPath: /data/ipfs
+            - name: swarm-key
+              mountPath: /swarm-key-source
+              readOnly: true
+            - name: disable-autoconf
+              mountPath: /container-init.d
+              readOnly: true
+          resources:
+            {{- toYaml $.Values.kubo.resources | nindent 12 }}
+      volumes:
+        - name: swarm-key
+          secret:
+            secretName: {{ include "ipfs-private-cluster.swarmKeySecretName" $ }}
+            items:
+              - key: {{ $.Values.swarmKey.secretKey }}
+                path: swarm.key
+        - name: disable-autoconf
+          configMap:
+            name: {{ include "ipfs-private-cluster.fullname" $ }}-disable-autoconf
+            defaultMode: 0755
+        {{- if not $.Values.kubo.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if $.Values.kubo.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if $.Values.kubo.persistence.storageClassName }}
+        storageClassName: {{ $.Values.kubo.persistence.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $.Values.kubo.persistence.size }}
+  {{- end }}
+{{- end }}

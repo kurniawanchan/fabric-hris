@@ -1,0 +1,151 @@
+# N single-replica StatefulSets, ordinals 0..ipfsCluster.peerCount-1, each
+# 1:1 paired with the identically-ordinaled kubo StatefulSet
+# (statefulset-kubo.yaml) — peer i's CLUSTER_IPFSHTTP_NODEMULTIADDRESS
+# points at kubo node i's own stable DNS name. This is a GENUINE structural
+# need for per-ordinal StatefulSets (unlike kubo's, see
+# statefulset-kubo.yaml's header comment): each replica of a single
+# N-replica StatefulSet shares one pod template, so there is no built-in
+# way to give replica 2 a different CLUSTER_IPFSHTTP_NODEMULTIADDRESS value
+# than replica 0 without per-ordinal templating like this.
+#
+# READ BEFORE ASSUMING THIS SECTION MAKES PIN REPLICATION WORK: deploying
+# these peers does NOT mean cross-peer CRDT pin-set replication works. See
+# README.md "Disclosed limitation: the CRDT peer-to-peer handshake defect"
+# — that defect is a libp2p application-layer failure between the
+# ipfs-cluster peer binaries themselves, reproduced and left unresolved in
+# the dev docker-compose cluster, and NOTHING about moving to Kubernetes
+# changes that. These peers are deployed for their OWN individually-useful
+# REST API/metrics surface (service-cluster-restapi.yaml), not as the
+# pin-durability mechanism — that mechanism is the N-way explicit pin
+# described in README.md, generalizing write-path-integration/ipfsclient's
+# existing 2-node PrimaryAPI/ReplicaAPI pattern.
+{{- $count := int .Values.ipfsCluster.peerCount }}
+{{- $bootstrapID := .Values.ipfsCluster.bootstrapPeerID }}
+{{- range $i := until $count }}
+{{- if or (eq $i 0) $bootstrapID }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" $ }}-cluster-{{ $i }}
+  labels:
+    {{- include "ipfs-private-cluster.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: ipfs-cluster
+    ipfs-cluster.hris/ordinal: "{{ $i }}"
+spec:
+  serviceName: {{ include "ipfs-private-cluster.fullname" $ }}-cluster-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: ipfs-cluster
+      ipfs-cluster.hris/ordinal: "{{ $i }}"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: ipfs-cluster
+        ipfs-cluster.hris/ordinal: "{{ $i }}"
+    spec:
+      hostname: {{ include "ipfs-private-cluster.fullname" $ }}-cluster-{{ $i }}
+      subdomain: {{ include "ipfs-private-cluster.fullname" $ }}-cluster-headless
+      # Waits for its paired kubo node to exist first (ordinal-matched):
+      # not a hard Kubernetes-enforced dependency (no such primitive across
+      # separate StatefulSets), just an initContainer poll — the daemon
+      # itself would otherwise start, fail its first NODEMULTIADDRESS dial,
+      # and rely on its own retry loop; polling first makes first-boot logs
+      # readable instead of full of transient dial-failure noise, matching
+      # the dev compose file's own `depends_on: [ipfs<N>]` intent (Compose
+      # `depends_on` similarly only orders container START, not readiness,
+      # so this is not a regression versus that file — if anything it is
+      # stricter, since it waits for the kubo API to actually answer).
+      initContainers:
+        - name: wait-for-kubo
+          image: "{{ $.Values.image.kubo.repository }}:{{ $.Values.image.kubo.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              until wget -q -O /dev/null --post-data='' "http://{{ include "ipfs-private-cluster.kuboPodFQDN" (list $ $i) }}:{{ $.Values.kubo.apiPort }}/api/v0/id"; do
+                echo "waiting for paired kubo node ordinal {{ $i }}..."
+                sleep 2
+              done
+      containers:
+        - name: ipfs-cluster
+          image: "{{ $.Values.image.ipfsCluster.repository }}:{{ $.Values.image.ipfsCluster.tag }}"
+          imagePullPolicy: {{ $.Values.image.ipfsCluster.pullPolicy }}
+          # args (Docker CMD equivalent) ONLY — command (Docker ENTRYPOINT
+          # equivalent) is deliberately left unset so the base image's own
+          # entrypoint script still runs first (it execs
+          # `ipfs-cluster-service $@`, performing its own init-on-first-run
+          # logic before that exec — see ipfs-cluster/docker-compose.yaml's
+          # comment on cluster1 for where this "daemon"/"--bootstrap" CMD
+          # convention comes from). Overriding `command` here to inject
+          # shell logic would bypass that init step exactly the way
+          # overriding kubo's entrypoint was already found, in this
+          # project's own history, to break permission handling — the same
+          # class of mistake, avoided the same way.
+          {{- if eq $i 0 }}
+          args: ["daemon"]
+          {{- else }}
+          args:
+            - daemon
+            - --bootstrap
+            - "/dns4/{{ include "ipfs-private-cluster.fullname" $ }}-cluster-0.{{ include "ipfs-private-cluster.fullname" $ }}-cluster-headless/tcp/{{ $.Values.ipfsCluster.clusterSwarmPort }}/p2p/{{ $bootstrapID }}"
+          {{- end }}
+          env:
+            - name: CLUSTER_PEERNAME
+              value: "cluster-{{ $i }}"
+            - name: CLUSTER_IPFSHTTP_NODEMULTIADDRESS
+              value: "/dns4/{{ include "ipfs-private-cluster.kuboPodFQDN" (list $ $i) }}/tcp/{{ $.Values.kubo.apiPort }}"
+            - name: CLUSTER_SECRET_FILE
+              value: /secret/cluster-secret.txt
+            - name: CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS
+              value: "/ip4/0.0.0.0/tcp/{{ $.Values.ipfsCluster.restApiPort }}"
+          ports:
+            - name: restapi
+              containerPort: {{ $.Values.ipfsCluster.restApiPort }}
+            - name: cluster-swarm
+              containerPort: {{ $.Values.ipfsCluster.clusterSwarmPort }}
+          volumeMounts:
+            - name: data
+              mountPath: /data/ipfs-cluster
+            - name: cluster-secret
+              mountPath: /secret
+              readOnly: true
+          resources:
+            {{- toYaml $.Values.ipfsCluster.resources | nindent 12 }}
+      volumes:
+        - name: cluster-secret
+          secret:
+            secretName: {{ include "ipfs-private-cluster.clusterSecretName" $ }}
+            items:
+              - key: {{ $.Values.clusterSecret.secretKey }}
+                path: cluster-secret.txt
+        {{- if not $.Values.ipfsCluster.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if $.Values.ipfsCluster.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if $.Values.ipfsCluster.persistence.storageClassName }}
+        storageClassName: {{ $.Values.ipfsCluster.persistence.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $.Values.ipfsCluster.persistence.size }}
+  {{- end }}
+{{- else }}
+# ordinal {{ $i }} SKIPPED: ipfsCluster.bootstrapPeerID is unset, and only
+# ordinal 0 can start without it (see values.yaml's bootstrapPeerID comment
+# and README.md's "Cluster peer bootstrap runbook"). This is deliberate —
+# starting peer i>0 without a real bootstrap target would leave it an
+# isolated, permanently-unpeered daemon, which is a worse and more
+# confusing state than simply not creating the resource yet.
+{{- end }}
+{{- end }}

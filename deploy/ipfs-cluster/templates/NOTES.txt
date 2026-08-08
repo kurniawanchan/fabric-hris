@@ -1,0 +1,28 @@
+ipfs-private-cluster ({{ .Chart.Version }}) installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Deployed: {{ .Values.kubo.nodeCount }} kubo node(s), {{ if .Values.ipfsCluster.bootstrapPeerID }}{{ .Values.ipfsCluster.peerCount }}{{ else }}1 (of {{ .Values.ipfsCluster.peerCount }} configured — see below){{ end }} ipfs-cluster peer(s).
+
+BEFORE assuming this cluster is ready for real traffic, read this chart's
+README.md in full — in particular:
+
+  1. "Disclosed limitation: the CRDT peer-to-peer handshake defect" — the
+     ipfs-cluster peers deployed here do NOT automatically replicate pins
+     to each other (an unresolved libp2p issue carried over from the dev
+     cluster, not fixed by this chart). Production pin durability is an
+     APPLICATION-LEVEL responsibility: pin explicitly on every kubo node's
+     own API, generalizing write-path-integration/ipfsclient's existing
+     2-node pattern.
+
+  2. "Cluster peer bootstrap runbook" — if ipfsCluster.bootstrapPeerID was
+     left empty, only peer ordinal 0 was created. Peers 1..N-1 are
+     templated out entirely (not half-started) until that value is set and
+     the release is upgraded.
+
+  3. "Encrypt-before-add enforcement" — this chart enforces NOTHING about
+     encryption; that guarantee lives entirely in application code
+     (write-path-integration/ipfsclient), before any bytes reach this
+     cluster's API at all.
+
+Secrets this chart expects to ALREADY exist (never created by this chart):
+  - {{ include "ipfs-private-cluster.swarmKeySecretName" . }}
+  - {{ include "ipfs-private-cluster.clusterSecretName" . }}

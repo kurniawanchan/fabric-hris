@@ -1,0 +1,50 @@
+# Example production override — NOT applied anywhere (standing scope
+# decision: generic artifacts only). Demonstrates the chart's N-node
+# generality beyond the dev cluster's proven N=2, and the knobs an operator
+# would actually need to touch per environment. Copy, rename, and adapt —
+# do not point a real `helm install -f` at this filename unmodified.
+#
+# Scaling to 3 illustrates the [ASSUMPTION] carried from ADR-0016 forward
+# unchanged (see README.md "Pinning-peer operator" section): ADR-0016 never
+# ratifies an exact node count or a second operator org, so this example
+# does NOT model "OrgClient-tenant01 runs the 3rd node" — it is 3 nodes,
+# still entirely under the same single operator ADR-0016 recommends
+# (Org1), because that TBD remains genuinely open, not silently resolved by
+# an example values file.
+
+image:
+  kubo:
+    tag: "v0.43.0" # [VERIFY] — pin the exact patch actually validated against this chart before real use; "latest" (the chart default) is unsafe for any non-throwaway environment.
+  ipfsCluster:
+    tag: "v1.1.4" # [VERIFY] — same caution.
+
+kubo:
+  nodeCount: 3
+  persistence:
+    size: 100Gi
+    storageClassName: "example-fast-ssd" # placeholder StorageClass name — replace with the target cluster's real one.
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+ipfsCluster:
+  peerCount: 3
+  # Left empty deliberately even in this "production example" — this value
+  # is NOT knowable until peer-0 has booted once in the target environment
+  # (see values.yaml's own comment and README.md's bootstrap runbook). A
+  # real rollout sets this in a SECOND `helm upgrade`, not in the first
+  # install's values file.
+  bootstrapPeerID: ""
+  persistence:
+    size: 20Gi
+    storageClassName: "example-fast-ssd"
+
+swarmKey:
+  existingSecretName: "example-ipfs-swarm-key" # created out-of-band before install — see README.md.
+
+clusterSecret:
+  existingSecretName: "example-ipfs-cluster-secret"

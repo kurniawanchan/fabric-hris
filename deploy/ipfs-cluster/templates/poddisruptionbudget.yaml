@@ -1,0 +1,37 @@
+# One PDB per component (not per-ordinal StatefulSet — a PDB selects by
+# label across all matching pods regardless of which of the N
+# single-replica StatefulSets owns them). maxUnavailable: 1 default keeps
+# ADR-0016's durability property meaningful during voluntary disruption
+# (node drain, cluster upgrade): with a 2-node minimum, losing 2 at once
+# during a rolling operation would mean zero surviving replicas of the
+# ciphertext for any object pinned only on those two — never let voluntary
+# disruption remove more than 1 at a time regardless of nodeCount.
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-kubo
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kubo
+spec:
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: kubo
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-ipfs-cluster
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ipfs-cluster
+spec:
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: ipfs-cluster
+{{- end }}

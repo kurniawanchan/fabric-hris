@@ -1,0 +1,25 @@
+# Headless Service for the ipfs-cluster peers' own cluster-swarm (libp2p,
+# peer-to-peer CRDT-consensus) port — mirrors service-kubo-headless.yaml's
+# reasoning. Gives peer ordinal 0 a stable DNS name that ordinals 1..N-1 can
+# --bootstrap against (once bootstrapPeerID is known — see
+# statefulset-ipfs-cluster.yaml and README.md's bootstrap runbook).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-cluster-headless
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ipfs-cluster
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: ipfs-cluster
+  ports:
+    - name: cluster-swarm
+      port: {{ .Values.ipfsCluster.clusterSwarmPort }}
+      targetPort: cluster-swarm
+    - name: restapi
+      port: {{ .Values.ipfsCluster.restApiPort }}
+      targetPort: restapi

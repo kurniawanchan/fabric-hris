@@ -1,0 +1,30 @@
+# DEP-3 — production-grade IPFS Private Cluster deployment artifact.
+# Backlog: agent-suite/06-roadmap/implementation-backlog.md, row DEP-3.
+# Authority: ADR-0016 (agent-suite/05-adr/ADR-0016-ipfs-private-cluster.md).
+# Companion, not a replacement for: ipfs-cluster/docker-compose.yaml (the
+# DEV bring-up this chart translates to K8s — same proven kubo config,
+# same disclosed CRDT-peering defect, see this chart's README.md).
+#
+# GENERIC ARTIFACT ONLY (standing scope decision, 2026-08-07): this chart is
+# a reviewable file set. It has not been `helm install`'d against any real
+# cluster as part of producing it.
+apiVersion: v2
+name: ipfs-private-cluster
+description: >-
+  Private, swarm-key-gated IPFS cluster (N kubo nodes + N ipfs-cluster
+  peers) for encrypted HRIS supporting documents (REC-5, ADR-0016).
+  Standalone leaf chart by design — see README.md "Why standalone" for the
+  justification against folding this into DEP-1's Fabric-network chart.
+type: application
+version: 0.1.0
+appVersion: "kubo-latest+ipfs-cluster-latest"
+keywords:
+  - ipfs
+  - ipfs-cluster
+  - hyperledger-fabric
+  - dep-3
+home: ""
+sources: []
+maintainers:
+  - name: sre
+    email: ""

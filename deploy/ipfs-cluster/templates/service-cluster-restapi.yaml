@@ -1,0 +1,23 @@
+# ClusterIP Service load-balancing the ipfs-cluster REST API (9094) across
+# all peers, for ops/observability use (DEP-5's future dashboards querying
+# per-peer `/pins` or `/id` — each peer's OWN local pinset view remains
+# individually meaningful and queryable even given the disclosed CRDT
+# handshake defect below; it's cross-peer pin-set REPLICATION that is not
+# to be relied on, not the REST API itself). Internal-only, same posture as
+# service-kubo-api.yaml — no LoadBalancer/NodePort/Ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-cluster-restapi
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ipfs-cluster
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: ipfs-cluster
+  ports:
+    - name: restapi
+      port: {{ .Values.ipfsCluster.restApiPort }}
+      targetPort: restapi

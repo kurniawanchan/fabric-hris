@@ -1,0 +1,65 @@
+# Defense-in-depth ONLY — NOT the confidentiality boundary. ADR-0016 is
+# explicit that the swarm key (LIBP2P_FORCE_PNET=1 + IPFS_SWARM_KEY_FILE) is
+# what gates cluster membership; this NetworkPolicy narrows which pods can
+# even attempt a TCP connection to the swarm/API ports in the FIRST place,
+# reducing blast radius from a misconfigured/compromised pod elsewhere in
+# the same namespace, but a pod that IS allowed through this policy still
+# needs the correct swarm key to complete a libp2p connection at all — this
+# resource does not and cannot replace that control.
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-kubo
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kubo
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: kubo
+  policyTypes:
+    - Ingress
+  ingress:
+    # Swarm port: only from this release's own kubo/ipfs-cluster pods
+    # (cross-node swarm traffic + the paired cluster peer dialing its own
+    # kubo node's API). Intentionally scoped to THIS release's pods, not
+    # "the whole namespace" — a second, unrelated ipfs-private-cluster
+    # release in the same namespace (e.g. a second tenant's own instance,
+    # if that topology is ever chosen) must not be implicitly trusted.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: swarm
+          protocol: TCP
+        - port: api
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ipfs-private-cluster.fullname" . }}-ipfs-cluster
+  labels:
+    {{- include "ipfs-private-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ipfs-cluster
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: ipfs-cluster
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: cluster-swarm
+          protocol: TCP
+        - port: restapi
+          protocol: TCP
+{{- end }}

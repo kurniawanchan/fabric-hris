@@ -1,0 +1,138 @@
+# Default values for the ipfs-private-cluster chart.
+# GENERIC PLACEHOLDER VALUES ONLY — no real company/product name, no real
+# hostnames, no real secret material (confidentiality register, standing
+# constraint). Override per-environment via a values-<env>.yaml, never by
+# editing this file's defaults in place for a real deployment.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Namespace is intentionally NOT set here — installed with
+# `helm install ... -n <namespace>`, matching how DEP-1's Fabric chart is
+# expected to be installed (kept out of this chart's own values so the two
+# charts don't fight over who owns namespace creation).
+
+image:
+  kubo:
+    repository: ipfs/kubo
+    tag: latest # [VERIFY] pin to an exact digest before any non-throwaway use — same caution NET-2/NET-4 raised for fabric-ca/fabric-peer floating tags (agent-suite grounding: fabric-core/references/version-matrix.md's own pinning discipline). Left floating here only because the DEV docker-compose.yaml this chart translates from also floats it.
+    pullPolicy: IfNotPresent
+  ipfsCluster:
+    repository: ipfs/ipfs-cluster
+    tag: latest # same [VERIFY] caution as above.
+    pullPolicy: IfNotPresent
+
+# ---------------------------------------------------------------------------
+# kubo (the actual private swarm — ADR-0016's real requirement)
+# ---------------------------------------------------------------------------
+kubo:
+  # N kubo nodes. The dev cluster (ipfs-cluster/docker-compose.yaml) proved
+  # 2; ADR-0016 recommends "a minimum of 2... for the encrypted-blob
+  # durability property to mean anything" without fixing an upper bound.
+  # This chart generalizes to N via a `range` over single-replica
+  # StatefulSets (see templates/statefulset-kubo.yaml header comment for why
+  # NOT one N-replica StatefulSet).
+  nodeCount: 2
+
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClassName: "" # empty = cluster default StorageClass; set explicitly per environment.
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+  # The dev cluster's IPFS API port (5001) is published to the HOST
+  # ("open here for this dev cluster's own tooling" — ipfs-cluster/README.md,
+  # ipfs-cluster/docker-compose.yaml's own comment on the ipfs0 service).
+  # Production posture fulfills the promise that same comment deferred:
+  # the API is a ClusterIP-scoped Service only (see
+  # templates/service-kubo-api.yaml) — reachable from inside the cluster's
+  # network (write-path-integration's ipfsclient / its production
+  # equivalent) and NEVER exposed via a LoadBalancer/Ingress. Anyone who can
+  # reach the API can add/pin/cat arbitrary content on that node; the swarm
+  # key gates node-to-node libp2p traffic, NOT API access — these are two
+  # separate controls and this chart does not conflate them.
+  apiPort: 5001
+  swarmPort: 4001
+
+# ---------------------------------------------------------------------------
+# ipfs-cluster peers — CRDT pin-set orchestration layer, deployed here for
+# future-readiness (REST API, `ipfs-cluster-ctl status`, per-peer metrics)
+# but NOT the production pinning mechanism this chart's own README asks
+# operators to rely on. See README.md "Disclosed CRDT handshake defect"
+# before assuming these peers actually replicate pins to each other.
+# ---------------------------------------------------------------------------
+ipfsCluster:
+  # 1:1 paired with kubo.nodeCount by convention (cluster peer ordinal i
+  # talks to kubo node ordinal i's OWN API, matching the dev compose file's
+  # cluster0->ipfs0 / cluster1->ipfs1 pairing) — NOT independently sized.
+  # Setting this to a value different from kubo.nodeCount is unsupported by
+  # this chart's templates (they zip by ordinal) and left that way
+  # deliberately rather than adding un-exercised flexibility.
+  peerCount: 2
+
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClassName: ""
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  restApiPort: 9094
+  clusterSwarmPort: 9096
+
+  # Peer-0's own libp2p peer ID, needed to construct the `--bootstrap`
+  # multiaddr for peers 1..N-1 (CLUSTER_PEERADDRESSES/service.json's
+  # peer_addresses field is NOT an active bootstrap trigger — empirically
+  # RESOLVED already in ipfs-cluster/docker-compose.yaml's own comment on
+  # cluster1; this chart inherits that finding rather than re-discovering
+  # it). This value CANNOT be known before peer-0 has booted once — same
+  # constraint the dev compose file hit ("cluster0's peer ID, read from its
+  # own first-boot log output"). Production runbook (README.md "Cluster
+  # peer bootstrap runbook"): install with peerCount=1 first, read peer-0's
+  # ID from its own logs or `GET :9094/id`, set this value, then upgrade
+  # the release to the intended peerCount. Left empty by default — peers
+  # 1..N-1 are TEMPLATED OUT ENTIRELY (not started half-configured) when
+  # this is empty; see templates/statefulset-ipfs-cluster.yaml.
+  bootstrapPeerID: ""
+
+# ---------------------------------------------------------------------------
+# Secrets — NEVER inline. Both of the following are referenced BY NAME only;
+# this chart does not create them. Create out-of-band before `helm install`:
+#
+#   kubectl create secret generic <release>-ipfs-swarm-key \
+#     -n <namespace> --from-file=swarm.key=./swarm.key
+#   kubectl create secret generic <release>-ipfs-cluster-secret \
+#     -n <namespace> --from-file=cluster-secret.txt=./cluster-secret.txt
+#
+# (Same two files' PURPOSE as ipfs-cluster/swarm-key/{swarm.key,cluster-
+# secret.txt} in the dev cluster — see that directory's own README/.gitignore
+# header for why each exists and why neither is ever committed. This chart
+# carries the same rule into K8s: a Secret object, not a values.yaml field.)
+# ---------------------------------------------------------------------------
+swarmKey:
+  existingSecretName: "" # defaults to "<fullname>-ipfs-swarm-key" if empty — see _helpers.tpl.
+  secretKey: swarm.key
+
+clusterSecret:
+  existingSecretName: "" # defaults to "<fullname>-ipfs-cluster-secret" if empty.
+  secretKey: cluster-secret.txt
+
+networkPolicy:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
