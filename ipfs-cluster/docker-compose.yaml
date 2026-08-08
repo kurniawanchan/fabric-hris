@@ -1,0 +1,127 @@
+# IPFS Private Cluster (ADR-0016) — 2 kubo nodes + 2 ipfs-cluster peers,
+# swarm-key gated, both Org1-operated (this ADR's own recommendation; the
+# TBD of whether OrgClient-<tenantID> should also operate a pinning peer is
+# explicitly NOT decided here — the ADR flags it, does not settle it).
+#
+# Confidentiality register (standing constraint): no real company/product
+# name anywhere in this file.
+#
+# Two SEPARATE secrets, both required, neither ever committed (see
+# .gitignore in this directory):
+#   - swarm-key/swarm.key    — libp2p private-network key (kubo). Gates
+#     which nodes can even open a libp2p connection to each other at all.
+#   - swarm-key/cluster-secret.txt — ipfs-cluster's own peer-trust secret.
+#     A DIFFERENT mechanism from the swarm key; cluster peers authenticate
+#     to each other with this, independent of libp2p network-level gating.
+
+networks:
+  ipfs-cluster-net:
+    name: ipfs-cluster-net
+
+volumes:
+  ipfs0-data:
+  ipfs1-data:
+  cluster0-data:
+  cluster1-data:
+
+services:
+  ipfs0:
+    image: ipfs/kubo:latest
+    container_name: ipfs0
+    hostname: ipfs0
+    environment:
+      - LIBP2P_FORCE_PNET=1 # refuse any connection outside the private swarm — the actual private-network enforcement, not just "having a swarm key file"
+      # IPFS_SWARM_KEY_FILE is the entrypoint script's OWN documented
+      # mechanism (read from the image's own /usr/local/bin/start_ipfs) for
+      # installing swarm.key with correct ownership/permissions during
+      # `ipfs init` — bind-mounting swarm.key directly at
+      # /data/ipfs/swarm.key (this file's first attempt) caused permission
+      # errors once the entrypoint's own privilege-drop (gosu) ran, since a
+      # host-mounted RO file can't be chowned to the container's ipfs user.
+      - IPFS_SWARM_KEY_FILE=/swarm-key-source/swarm.key
+    # RESOLVED empirically: kubo 0.43's "AutoConf" feature tries to fetch
+    # config from a public mainnet URL by default and refuses to start at
+    # all when a private-network swarm key is detected, unless explicitly
+    # disabled. Not documented anywhere this design's corpus covers — found
+    # by running the real image, not guessed. Fixed via the entrypoint's own
+    # /container-init.d/*.sh hook (also read from its source), which runs
+    # AFTER `ipfs init` as the correct already-privilege-dropped user — NOT
+    # by overriding entrypoint/command, which skips that script's own
+    # permission handling entirely (this file's second attempt, also broken).
+    volumes:
+      - ipfs0-data:/data/ipfs
+      - ./swarm-key/swarm.key:/swarm-key-source/swarm.key:ro
+      - ./init-hooks/disable-autoconf.sh:/container-init.d/disable-autoconf.sh:ro
+    networks:
+      - ipfs-cluster-net
+    ports:
+      - "4001:4001" # swarm (libp2p)
+      - "5001:5001" # API (loopback-scoped in production; open here for this dev cluster's own tooling)
+
+  ipfs1:
+    image: ipfs/kubo:latest
+    container_name: ipfs1
+    hostname: ipfs1
+    environment:
+      - LIBP2P_FORCE_PNET=1
+      - IPFS_SWARM_KEY_FILE=/swarm-key-source/swarm.key
+    volumes:
+      - ipfs1-data:/data/ipfs
+      - ./swarm-key/swarm.key:/swarm-key-source/swarm.key:ro
+      - ./init-hooks/disable-autoconf.sh:/container-init.d/disable-autoconf.sh:ro
+    networks:
+      - ipfs-cluster-net
+    ports:
+      - "4002:4001"
+      - "5002:5001"
+
+  cluster0:
+    image: ipfs/ipfs-cluster:latest
+    container_name: cluster0
+    hostname: cluster0
+    depends_on:
+      - ipfs0
+    environment:
+      - CLUSTER_PEERNAME=cluster0
+      - CLUSTER_IPFSHTTP_NODEMULTIADDRESS=/dns4/ipfs0/tcp/5001
+      - CLUSTER_SECRET_FILE=/secret/cluster-secret.txt
+      - CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS=/ip4/0.0.0.0/tcp/9094
+    volumes:
+      - cluster0-data:/data/ipfs-cluster
+      - ./swarm-key/cluster-secret.txt:/secret/cluster-secret.txt:ro
+    networks:
+      - ipfs-cluster-net
+    ports:
+      - "9094:9094" # cluster REST API
+      - "9096:9096" # cluster swarm (libp2p, cluster-to-cluster)
+
+  cluster1:
+    image: ipfs/ipfs-cluster:latest
+    container_name: cluster1
+    hostname: cluster1
+    depends_on:
+      - ipfs1
+      - cluster0
+    environment:
+      - CLUSTER_PEERNAME=cluster1
+      - CLUSTER_IPFSHTTP_NODEMULTIADDRESS=/dns4/ipfs1/tcp/5001
+      - CLUSTER_SECRET_FILE=/secret/cluster-secret.txt
+      - CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS=/ip4/0.0.0.0/tcp/9094
+    # RESOLVED empirically: CLUSTER_PEERADDRESSES only seeds the config
+    # file's `peer_addresses` field at `ipfs-cluster-service init` time —
+    # for CRDT consensus that field is NOT an active bootstrap trigger (both
+    # peers came up reporting "Sees 0 other peers" despite it being set and
+    # present in service.json). The actual, working mechanism is the
+    # `--bootstrap`/`-j` DAEMON flag, passed via `command:` here — the
+    # entrypoint script execs `ipfs-cluster-service $@` where $@ is CMD, so
+    # this overrides just the CMD, not the whole entrypoint's init/privilege
+    # handling. cluster0's peer ID, read from its own first-boot log output.
+    command: ["daemon", "--bootstrap", "/dns4/cluster0/tcp/9096/p2p/12D3KooWRCvbsXZxDYtaPDSRGEXUCirEq4zwnGJ17YWhSUVRR5E9"]
+    volumes:
+      - cluster1-data:/data/ipfs-cluster
+      - ./swarm-key/cluster-secret.txt:/secret/cluster-secret.txt:ro
+    networks:
+      - ipfs-cluster-net
+    ports:
+      - "9095:9094"
+      - "9097:9096"

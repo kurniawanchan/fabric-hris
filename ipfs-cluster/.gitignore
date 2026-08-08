@@ -1,0 +1,6 @@
+# ADR-0016: the swarm key gates this private cluster's entire confidentiality
+# model - anyone with this file can join the swarm and fetch every pinned
+# ciphertext blob (fetch-side control, separate from KEY_EMPLOYEE encryption).
+# The cluster secret gates cluster-peer trust similarly. NEVER commit either.
+swarm-key/
+data/
