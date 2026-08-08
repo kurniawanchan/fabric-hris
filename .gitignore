@@ -1,0 +1,38 @@
+# Dot-prefixed and underscore-prefixed top-level directories (agent tooling,
+# BMAD output, local state — not part of the tracked prototype)
+/.*/
+/_*/
+
+# macOS
+.DS_Store
+
+# Go tool binaries — build with `go build`/`go run`, don't commit
+fabric-network/tools/ccdeploy/ccdeploy
+fabric-network/tools/jcsverify/jcsverify
+fabric-network/tools/netjoin/netjoin
+fabric-network/tools/pilscan/pilscan
+fabric-network/tools/raftfaulttest/raftfaulttest
+fabric-network/tools/tenantprovision/tenantprovision
+
+# Node (qa-tests/performance Caliper workspace — see RESULTS.md §5.1 before
+# reinstalling: node_modules/ here is hand-patched for mutual TLS)
+node_modules/
+npm-debug.log*
+
+# IPFS Private Cluster — regenerable data volumes if ever run outside Docker
+ipfs-cluster/data/
+ipfs-cluster/*/data/
+
+# Note: fabric-network/ has its own nested .gitignore for generated crypto
+# material, channel blocks, chaincode vendor/package artifacts, etc.
+
+# Claude
+agent-suite
+CLAUDE.md
+fabric-skill-suite
+
+# Docs
+design-artifacts
+docs
+qa-tests/evaluation
+qa-tests/security
