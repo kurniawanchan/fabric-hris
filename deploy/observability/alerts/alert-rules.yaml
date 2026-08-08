@@ -1,0 +1,210 @@
+# =============================================================================
+# alert-rules.yaml — DEP-5 Prometheus alerting rules (reference artifact)
+# =============================================================================
+# Backlog item: DEP-5 (agent-suite/06-roadmap/implementation-backlog.md).
+# See deploy/observability/README.md §5 for the full format-choice justification
+# and the metric-contract table (README §2) distinguishing LIVE Fabric metrics
+# from NOT-YET-IMPLEMENTED target contracts this item defines.
+#
+# STANDING SCOPE: generic artifact only. No Prometheus/Alertmanager instance
+# runs anywhere in this workspace; this file has not been applied to one.
+# `promtool` was not available in this environment to lint it mechanically
+# (`which promtool` -> not found); validated instead as well-formed YAML via
+# Ruby's stdlib (`ruby -ryaml -e "YAML.load_file(...)"`) — see the report
+# accompanying this item for the exact command run.
+#
+# Confidentiality register: no real company/product name appears below —
+# tenant01/tenant02 placeholders only.
+# =============================================================================
+
+groups:
+  # ---------------------------------------------------------------------------
+  # Category 1 of 3 — cert expiry approaching
+  # Metric: fabric_cert_not_after_seconds (README §2.2, NOT YET IMPLEMENTED —
+  # producer owned by DEP-2's cert-expiry exporter/cron, this item only
+  # defines the shape it must feed). Thresholds (30d warning / 7d critical)
+  # are the task brief's own suggested values, not derived from a ratified
+  # PRD/ADR SLA number — no such number exists yet; DEP-2's own
+  # cert-rotation-runbook.md (referenced but not yet written, per
+  # deploy/provisioning/identity-tls-hsm-provisioning.md §1) is free to
+  # supersede these.
+  # ---------------------------------------------------------------------------
+  - name: fabric-hris-cert-expiry
+    rules:
+      - alert: FabricCertExpiryWarning
+        expr: (fabric_cert_not_after_seconds - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          category: cert-expiry
+        annotations:
+          summary: "Fabric cert for {{ $labels.identity }} ({{ $labels.org }}, {{ $labels.cert_type }}) expires in under 30 days"
+          description: >-
+            {{ $labels.identity }} ({{ $labels.org }}, tenant_id={{ $labels.tenant_id }},
+            cert_type={{ $labels.cert_type }}) has {{ $value | humanizeDuration }} days
+            left before expiry. Schedule rotation now — an expired MSP-signing or TLS
+            cert on any of the three orgs' identities (or a per-tenant OrgClient
+            enrollment) blocks that identity from endorsing/submitting/gossiping at
+            all, which surfaces downstream as a spike in
+            WritePathPartialFailureDetected (see fabric-hris-write-path group)
+            rather than as an obviously-related cert error, if this alert is not
+            wired first.
+          runbook: "deploy/provisioning/identity-tls-hsm-provisioning.md; DEP-2's cert-rotation-runbook.md (not yet written as of DEP-5)"
+
+      - alert: FabricCertExpiryCritical
+        expr: (fabric_cert_not_after_seconds - time()) / 86400 < 7
+        for: 15m
+        labels:
+          severity: critical
+          category: cert-expiry
+        annotations:
+          summary: "Fabric cert for {{ $labels.identity }} ({{ $labels.org }}, {{ $labels.cert_type }}) expires in under 7 days"
+          description: >-
+            {{ $labels.identity }} ({{ $labels.org }}, tenant_id={{ $labels.tenant_id }},
+            cert_type={{ $labels.cert_type }}) has {{ $value | humanizeDuration }} days
+            left. If cert_type=admin-signcert, this is the identity the live
+            Gateway client actually authenticates as (write-path-integration/
+            gateway-client's own integration tests use Admin@<orgdir>, not the
+            parallel Fabric-CA hris-user1 identity) — expiry here stops the write
+            path entirely for that org's endorsements, not just for one tenant if
+            the org is Org1 or Org3.
+          runbook: "deploy/provisioning/identity-tls-hsm-provisioning.md; DEP-2's cert-rotation-runbook.md (not yet written as of DEP-5)"
+
+  # ---------------------------------------------------------------------------
+  # Category 2 of 3 — a channel's peer/orderer reporting unhealthy
+  # Metrics: up, participation_status, consensus_etcdraft_active_nodes /
+  # consensus_etcdraft_cluster_size — all REAL Fabric Prometheus metrics
+  # (fabric-skill-suite/corpus/fabric-docs-2.5/metrics_reference.rst), LIVE
+  # once metrics.provider: prometheus is set (currently `disabled` on every
+  # node in fabric-network/network/compose/network-docker-compose.yaml).
+  # ---------------------------------------------------------------------------
+  - name: fabric-hris-channel-health
+    rules:
+      - alert: FabricPeerDown
+        expr: up{job=~"fabric-peer.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: channel-health
+        annotations:
+          summary: "Peer {{ $labels.instance }} ({{ $labels.job }}) is down"
+          description: >-
+            Scrape target down for 2m+. If this is Org1's only reachable peer for
+            a given tenant channel and its sibling Org1 peer is also down, that
+            channel loses endorsement capacity from the platform side entirely
+            (AND(Org1MSP.peer, OrgClient-<tenantID>MSP.peer) policy, ADR-0012/0013).
+
+      - alert: FabricOrdererDown
+        expr: up{job=~"fabric-orderer.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: channel-health
+        annotations:
+          summary: "Orderer {{ $labels.instance }} ({{ $labels.job }}) is down"
+          description: >-
+            One Org1 Raft consenter unreachable. Tolerated alone (f=1, ADR-0012)
+            but check FabricRaftQuorumDegraded/Critical below for the per-channel
+            quorum consequence, not just this node's own liveness.
+
+      - alert: FabricChannelParticipationDegraded
+        expr: participation_status{channel=~"tenant-.+"} != 1
+        for: 5m
+        labels:
+          severity: warning
+          category: channel-health
+        annotations:
+          summary: "Orderer {{ $labels.instance }} reports non-active participation on channel {{ $labels.channel }}"
+          description: >-
+            participation_status != 1 (active) sustained for 5m: 0=inactive,
+            2=onboarding, 3=failed. A `3` (failed) on a tenant channel this
+            orderer is expected to serve is the direct per-channel "orderer
+            unhealthy for this specific tenant" signal the task brief asks for,
+            distinct from the node-level FabricOrdererDown above.
+
+      - alert: FabricRaftQuorumDegraded
+        expr: consensus_etcdraft_active_nodes{channel=~"tenant-.+"} == (consensus_etcdraft_cluster_size{channel=~"tenant-.+"} - 1)
+        for: 5m
+        labels:
+          severity: warning
+          category: channel-health
+        annotations:
+          summary: "Raft consenter set for channel {{ $labels.channel }} is running at 2 of 3 nodes"
+          description: >-
+            Tolerated per ADR-0012 (f = floor((3-1)/2) = 1) — ordering continues
+            on {{ $labels.channel }} — but this channel, like every tenant
+            channel (they share the same 3 Org1-operated consenters), is now
+            one more Org1-side node failure away from FabricRaftQuorumCritical
+            below. Investigate the down consenter before a second one follows.
+          runbook: "deploy/observability/README.md §4 (residual-risk rationale)"
+
+      - alert: FabricRaftQuorumCritical
+        expr: consensus_etcdraft_active_nodes{channel=~"tenant-.+"} < 2
+        for: 1m
+        labels:
+          severity: critical
+          category: channel-health
+        annotations:
+          summary: "Raft quorum LOST for channel {{ $labels.channel }} — ordering halted network-wide"
+          description: >-
+            active_nodes < 2 of a 3-node, all-Org1-operated consenter set means
+            quorum is lost: NO new blocks are being cut on {{ $labels.channel }},
+            and because the same 3 consenters serve every tenant channel
+            (ADR-0013 — ordering is not fanned out per tenant), every other
+            provisioned tenant channel has almost certainly lost quorum
+            simultaneously, not just this one. This is ADR-0012's own named,
+            accepted residual risk materializing, not a surprise failure mode —
+            "Org1 can halt ordering on every channel it services... with no
+            action from Org2 or Org3 required or possible to prevent it."
+            Recovery requires restoring Org1-operated orderer infrastructure;
+            no other org can restore quorum.
+          runbook: "deploy/observability/README.md §4; agent-suite/05-adr/ADR-0012-consortium-three-org-topology.md Consequences"
+
+  # ---------------------------------------------------------------------------
+  # Category 3 of 3 — INT-5's partial-failure signal crossing a rate threshold
+  # Metric: writepath_partial_failure_total (README §2.2, NOT YET IMPLEMENTED).
+  # No attempts-denominator metric exists in this codebase (see README §2.2's
+  # own note) so both rules below threshold on an absolute count, not a
+  # fraction of attempts — inventing a denominator metric with no producing
+  # code would not be "grounding this in the real signal shape this codebase
+  # actually produces" per this item's own task brief.
+  # ---------------------------------------------------------------------------
+  - name: fabric-hris-write-path
+    rules:
+      - alert: WritePathPartialFailureDetected
+        expr: increase(writepath_partial_failure_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          category: write-path-integrity
+        annotations:
+          summary: "At least one write-path partial failure in the last 15m ({{ $labels.tenant_id }}/{{ $labels.profile_section }})"
+          description: >-
+            A PartialFailureError occurred: the operational-DB write for this
+            profile-section version committed, but its blockchain anchor did
+            not (writepaths.go). No reconciliation job exists to catch this
+            independently (INTEG §5.1 — retired the old Kafka-based catch-up
+            mechanism) — this alert firing IS the catch, per INT-5's own DoD
+            ("at minimum surfaced as an error/metric", INTEG §7/SEC T6b). Fires
+            on ANY occurrence, deliberately, not just a sustained rate.
+          runbook: "write-path-integration/writepaths/writepaths.go (PartialFailureError doc comment)"
+
+      - alert: WritePathPartialFailureRateElevated
+        expr: sum(increase(writepath_partial_failure_total[5m])) by (tenant_id) > 30
+        for: 5m
+        labels:
+          severity: critical
+          category: write-path-integrity
+        annotations:
+          summary: "Elevated partial-failure rate for tenant {{ $labels.tenant_id }} (>30 in 5m)"
+          description: >-
+            [ASSUMPTION — placeholder threshold, pending QA-4 calibration,
+            same convention as NFR-9's own PRD text: "ambang awal — kalibrasi
+            ulang setelah Caliper §10.4 butir 3 berjalan"]. A burst this size
+            in one tenant's failures (vs. isolated single occurrences already
+            caught by WritePathPartialFailureDetected above) suggests a
+            systemic cause — e.g. that tenant's OrgClient cert expired
+            (cross-check FabricCertExpiryCritical), or a Fabric-side outage —
+            rather than an isolated retry-exhaustion event. Recalibrate this
+            threshold once QA-4's real write-throughput numbers exist; there is
+            no measured baseline behind "30" today.

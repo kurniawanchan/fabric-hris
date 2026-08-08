@@ -1,0 +1,348 @@
+# =============================================================================
+# REFERENCE IMPLEMENTATION ONLY — this repository has NOT chosen a CI
+# provider and does NOT run GitHub Actions today. This file is ONE concrete
+# transcription of deploy/ci/ci-pipeline-spec.md (backlog item DEP-4),
+# written in GitHub Actions syntax because it is the most portable common
+# default to adapt from — not a claim that this workspace uses GitHub
+# Actions. See ci-pipeline-spec.md for the tool-agnostic stage spec this
+# file implements; every command/path below is taken from that document,
+# which in turn cites the real files it was derived from
+# (ADR-0020, SEC T13, TEST ST-9, implementation-backlog.md DEP-4).
+#
+# Standing scope decision (2026-08-07, binding): GENERIC ARTIFACT ONLY. This
+# file has never been run against a real GitHub repository, has no real
+# secrets configured behind it, and its deploy-gate job performs no real
+# `helm`/`kubectl`/`terraform` invocation (§ ci-pipeline-spec.md §0/§8).
+#
+# Confidentiality register: no real company/product name appears below;
+# tenant01/tenant02 are the same generic placeholder tenant IDs used
+# throughout fabric-network/ and write-path-integration/.
+#
+# Placeholder values only — every credential-shaped reference below is
+# ${{ secrets.X }} syntax; none is a real value.
+# =============================================================================
+
+name: ci-reference-dep4
+
+"on":
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["chaincode-v*"]
+
+env:
+  GO_VERSION_CHAINCODE: "1.21"        # fabric-network/chaincode/employeeprofilerecord/go.mod
+  GO_VERSION_WRITEPATH: "1.25.9"      # write-path-integration/go.work + every module's go.mod
+  # Placeholder only — no registry is chosen in this repo (ci-pipeline-spec.md §7).
+  REGISTRY: "ghcr.io/example-org/example-repo"
+
+jobs:
+  # ===========================================================================
+  # Stage 1 — Lint (ci-pipeline-spec.md §3). Two independent jobs: different
+  # Go toolchain versions pinned per module tree, so one job cannot serve both.
+  # ===========================================================================
+  lint-chaincode:
+    name: lint / chaincode
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION_CHAINCODE }}
+      - name: gofmt (chaincode module, vendor/ excluded)
+        working-directory: fabric-network/chaincode/employeeprofilerecord
+        run: |
+          set -euo pipefail
+          bad=$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))
+          if [ -n "$bad" ]; then
+            printf '%s\n' "$bad"
+            echo "gofmt found unformatted files (listed above) — run gofmt -w on them"
+            exit 1
+          fi
+      - name: go vet
+        working-directory: fabric-network/chaincode/employeeprofilerecord
+        run: go vet ./...
+
+  lint-writepath:
+    name: lint / write-path-integration (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Four independent Go modules under one go.work (ci-pipeline-spec.md
+        # §1). Each job below cds into its OWN module directory before
+        # running anything — never the write-path-integration root, which
+        # fails with "directory prefix . does not contain modules listed in
+        # go.work or their selected dependencies" (reproduced this session,
+        # see ci-pipeline-spec.md §1).
+        module: [gateway-client, ipfsclient, keystore, writepaths]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION_WRITEPATH }}
+      - name: gofmt
+        working-directory: write-path-integration/${{ matrix.module }}
+        run: |
+          set -euo pipefail
+          bad=$(gofmt -l .)
+          if [ -n "$bad" ]; then
+            printf '%s\n' "$bad"
+            echo "gofmt found unformatted files (listed above) — run gofmt -w on them"
+            exit 1
+          fi
+      - name: go vet
+        working-directory: write-path-integration/${{ matrix.module }}
+        run: go vet ./...
+
+  # ===========================================================================
+  # Stage 2 — SAST (ci-pipeline-spec.md §4). Concrete mechanism: `semgrep ci`,
+  # the same Semgrep AppSec Platform backend this session's Guardian MCP
+  # tools (get_semgrep_sast_findings / get_semgrep_secrets_findings /
+  # get_semgrep_supply_chain_findings / list_semgrep_projects) read from —
+  # this job is the PRODUCER of those findings, not a separate tool.
+  # ===========================================================================
+  sast:
+    name: sast / semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: semgrep ci
+        env:
+          # Project-scoped platform token. NEVER echoed, printed, or logged
+          # below — see this file's closing "no secrets in logs" note.
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet semgrep
+          semgrep ci --config auto \
+            fabric-network/chaincode/employeeprofilerecord/chaincode \
+            write-path-integration/gateway-client \
+            write-path-integration/ipfsclient \
+            write-path-integration/keystore \
+            write-path-integration/writepaths
+          # `vendor/` and go.sum-pinned third-party source are deliberately
+          # excluded from this scan target list (ci-pipeline-spec.md §4) —
+          # the supply-chain product (get_semgrep_supply_chain_findings)
+          # covers go.sum/vendor/modules.txt version findings separately.
+
+  # ===========================================================================
+  # Stage 3 — Unit tests (ci-pipeline-spec.md §5). Plain `go test ./...`
+  # never compiles in a `//go:build integration` file — no -tags flag or
+  # exclusion list needed for this stage to stay integration-test-free.
+  # ===========================================================================
+  unit-chaincode:
+    name: unit / chaincode
+    runs-on: ubuntu-latest
+    needs: [lint-chaincode, sast]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION_CHAINCODE }}
+      - name: go test
+        working-directory: fabric-network/chaincode/employeeprofilerecord
+        run: go test ./...
+
+  unit-writepath:
+    name: unit / write-path-integration (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    needs: [lint-writepath, sast]
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [gateway-client, ipfsclient, keystore, writepaths]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION_WRITEPATH }}
+      - name: go test (unit only — integration-tagged files not compiled in)
+        working-directory: write-path-integration/${{ matrix.module }}
+        run: go test ./...
+
+  # ===========================================================================
+  # Stage 4 — Integration tests (ci-pipeline-spec.md §6). Requires the live
+  # Fabric + IPFS stack. GitHub-hosted `services:` containers are NOT used
+  # here on purpose: bring-up needs this repo's own Go tools
+  # (fabric-network/tools/netjoin, .../ccdeploy) run in a specific sequence
+  # against a helper container, not just "containers reachable on
+  # localhost" — modeled below as explicit steps in one job instead.
+  #
+  # DISCLOSED GAP (ci-pipeline-spec.md §10, §6 item 2): netjoin/ccdeploy are
+  # one-shot tools hardcoded to the tenant01 fixture, written for manual
+  # execution during this build — not yet hardened into general-purpose,
+  # idempotent CI fixtures. The steps below reconstruct their documented
+  # invocation shape (from each tool's own header comment) as a starting
+  # point to harden, not as an already-proven CI job.
+  # ===========================================================================
+  integration:
+    name: integration (live Fabric + IPFS)
+    runs-on: ubuntu-latest
+    needs: [unit-chaincode, unit-writepath]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION_WRITEPATH }}
+
+      - name: Bring up Fabric CAs (NET-2)
+        run: docker compose -f fabric-network/network/compose/ca-docker-compose.yaml up -d
+
+      - name: Bring up Fabric peers/orderers (NET-4)
+        run: docker compose -f fabric-network/network/compose/network-docker-compose.yaml up -d
+
+      - name: Bring up IPFS private swarm (REC-5)
+        run: docker compose -f ipfs-cluster/docker-compose.yaml up -d
+
+      - name: Start the fabric-tools-net helper container
+        # No compose service defines this container anywhere in the repo —
+        # netjoin's own header comment documents it as a container attached
+        # to fabric-network-net with fabric-network/network/ mounted
+        # read-only at /net; reconstructed here from that description.
+        run: |
+          docker run -d --name fabric-tools-net \
+            --network fabric-network-net \
+            -v "$(pwd)/fabric-network/network:/net:ro" \
+            hyperledger/fabric-tools:2.5 sleep infinity
+
+      - name: Create + join the tenant01 channel (NET-3, via netjoin)
+        working-directory: fabric-network/tools/netjoin
+        run: go run .
+
+      - name: Build the chaincode CCaaS image
+        run: |
+          docker build \
+            -t employeeprofilerecord:ci-${{ github.sha }} \
+            fabric-network/chaincode/employeeprofilerecord
+
+      - name: Install / approve / commit / smoke-test (CC-5, via ccdeploy)
+        working-directory: fabric-network/tools/ccdeploy
+        run: |
+          go run . | tee /tmp/ccdeploy.out
+          # ccdeploy's own steps 1-6 (install/approve/commitreadiness/
+          # commit/invoke/query) print the package ID `queryinstalled`
+          # reports partway through (ccdeploy/main.go's own header — the
+          # employeeprofilerecord-ccaas server container must already be
+          # listening with CHAINCODE_ID set to that exact value BEFORE the
+          # invoke/query steps can succeed). Extracting that ID and
+          # (re)starting the server container with it is the exact
+          # operational coupling flagged in ci-pipeline-spec.md §7 — a
+          # hardened version of this step would parse /tmp/ccdeploy.out for
+          # the package ID and `docker run` the freshly-built image above
+          # with CHAINCODE_ID=<that ID> before this step, rather than after.
+
+      - name: Run integration tests — gateway-client
+        working-directory: write-path-integration/gateway-client
+        run: go test -tags=integration ./...
+
+      - name: Run integration tests — ipfsclient
+        working-directory: write-path-integration/ipfsclient
+        run: go test -tags=integration ./...
+
+      - name: Run integration tests — writepaths
+        working-directory: write-path-integration/writepaths
+        run: go test -tags=integration ./...
+        # keystore has zero //go:build integration files (ci-pipeline-spec.md
+        # §5 table) — no -tags=integration invocation for it, by design, not
+        # omission.
+
+      - name: Tear down (always, even on failure)
+        if: always()
+        run: |
+          docker compose -f ipfs-cluster/docker-compose.yaml down -v
+          docker compose -f fabric-network/network/compose/network-docker-compose.yaml down -v
+          docker compose -f fabric-network/network/compose/ca-docker-compose.yaml down -v
+          docker rm -f fabric-tools-net || true
+
+  # ===========================================================================
+  # Stage 5 — Image build (ci-pipeline-spec.md §7). Only on push to main or a
+  # release tag — a PR never publishes an image (ci-pipeline-spec.md §2).
+  # ===========================================================================
+  image-build:
+    name: image build / chaincode CCaaS
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    needs: [integration]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image (context = the chaincode module directory, NOT repo root)
+        # COPY . . in the Dockerfile copies everything in the build context —
+        # pointed at the repo root this would drag in the whole monorepo and
+        # build against the wrong (or no) go.mod. ci-pipeline-spec.md §7.
+        run: |
+          docker build \
+            -t "${{ env.REGISTRY }}/employeeprofilerecord:${{ github.sha }}" \
+            fabric-network/chaincode/employeeprofilerecord
+
+      - name: Log in to registry
+        # ${{ secrets.REGISTRY_USERNAME }} / ${{ secrets.REGISTRY_PASSWORD }}
+        # are placeholders — no real registry is chosen in this repo
+        # (ci-pipeline-spec.md §7). Uses the maintained `docker/login-action`
+        # rather than a hand-rolled `echo "$PASSWORD" | docker login
+        # --password-stdin` shell pipeline deliberately: the action passes
+        # the credential to the Docker CLI without ever constructing a shell
+        # command string containing it, so it never appears in this step's
+        # own `run:` text at all (not even as a value GitHub's log-masking
+        # has to redact after the fact) — the stronger form of the "never
+        # print it" rule in ci-pipeline-spec.md §9, not merely a maskable one.
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Push image
+        run: |
+          docker push "${{ env.REGISTRY }}/employeeprofilerecord:${{ github.sha }}"
+
+      # Not this stage's job (ci-pipeline-spec.md §7): pushing this image
+      # does not redeploy the running chaincode. That needs a
+      # CHAINCODE_ID-matched restart of the CCaaS server container plus a
+      # `peer lifecycle` approve/commit sequence (fabric-network/tools/
+      # ccdeploy) run as a separate operational step, not part of this build.
+
+  # ===========================================================================
+  # Stage 6 — Deploy gate (ci-pipeline-spec.md §8). A pass/fail checkpoint
+  # only — per the standing scope decision, NO helm/kubectl/terraform
+  # invocation exists in this job or anywhere in this reference file.
+  # ===========================================================================
+  deploy-gate:
+    name: deploy gate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    needs:
+      [lint-chaincode, lint-writepath, sast, unit-chaincode, unit-writepath, integration, image-build]
+    environment:
+      name: production   # environment-protection / required-reviewers boundary — configured
+                          # on the GitHub repo side, not in this file; no real environment exists today.
+    steps:
+      - name: Record gate-passed signal
+        run: |
+          echo "All DEP-4 stages green for ${{ github.sha }} — deploy authorized."
+          echo "Actual deploy (helm upgrade --install against deploy/helm/fabric-network [DEP-1]"
+          echo "and deploy/ipfs-cluster [DEP-3]) is a SEPARATE, not-yet-written workflow this gate"
+          echo "would hand off to — out of DEP-4's scope (ci-pipeline-spec.md §0/§8)."
+
+# =============================================================================
+# "No secrets in logs" — structural check for this file (DEP-4's own DoD;
+# see ci-pipeline-spec.md §9 for the full reasoning, including why GitHub's
+# native secrets-masking is NOT relied on as a substitute for this rule).
+#
+# Every place a secret is referenced above is `${{ secrets.X }}` used
+# EITHER (a) as an `env:` value consumed by a tool that reads it from its
+# own environment (SEMGREP_APP_TOKEN — semgrep itself reads this, this
+# workflow never touches its value), OR (b) passed as a typed `with:` input
+# to a maintained action (`docker/login-action` — REGISTRY_USERNAME/
+# REGISTRY_PASSWORD) so the credential never appears inside any `run:`
+# shell string this file writes at all. No step in this file contains
+# `echo`, `printf`, `cat`, `printenv`, or bare `env` applied to any of:
+# SEMGREP_APP_TOKEN, REGISTRY_USERNAME, REGISTRY_PASSWORD, or any file path
+# under fabric-network/network/crypto-config/ (TLS keys, MSP keystore
+# priv_sk), or ipfs-cluster/swarm-key/ (swarm key, cluster secret). The
+# `tee /tmp/ccdeploy.out` step logs ccdeploy's own stdout (package IDs,
+# transaction IDs, timestamps — all non-secret per ADR-0020's boundary rule)
+# and touches no credential material.
+# =============================================================================
