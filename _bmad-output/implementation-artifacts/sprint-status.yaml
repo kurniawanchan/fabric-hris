@@ -1,0 +1,88 @@
+# generated: 2026-08-08
+# last_updated: 2026-08-09
+# project: fabric-hris
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; sprint-status surfaces open ones
+
+generated: 2026-08-08
+last_updated: 2026-08-09
+project: fabric-hris
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  epic-1: done
+  1-1-module-scaffold-and-long-lived-fabric-connection: done
+  1-2-talenta-core-can-anchor-a-personal-section-change: done
+  1-3-talenta-core-can-anchor-an-employment-section-change: done
+  1-4-talenta-core-can-anchor-an-education-section-change: done
+  1-5-talenta-core-can-anchor-an-additional-section-change: done
+  1-6-talenta-core-can-anchor-a-payroll-section-change-completing-all-five-routes: done
+  epic-1-retrospective: done
+
+action_items:
+  - epic: 1
+    action: "Diff each new sibling story's tests against the most recently *patched* sibling before writing them, not just the most recently dev-storied one"
+    owner: "process"
+    status: open
+  - epic: 1
+    action: "Add a git status --porcelain check alongside the confidentiality grep in the standard before-finishing-a-story checklist"
+    owner: "process"
+    status: open
+  - epic: 1
+    action: "Update CLAUDE.md's confidentiality register at the moment a new directory starts being treated as hard-clean, not retroactively"
+    owner: "process"
+    status: open
+  - epic: 1
+    action: "Close grounding-gaps.md G-35 (no test proves buildMux wires each route to its correct Hooks method) via a full stub Hooks store implementation"
+    owner: "fabric-engineer"
+    status: open
+  - epic: 1
+    action: "Close grounding-gaps.md G-36 (PAYROLL live-network test cannot prove byte precision survived the real commit) - same pseudonym-opacity family as G-34"
+    owner: "fabric-engineer"
+    status: open
+  - epic: 1
+    action: "Fix Story 1.3's TestRegisterProfileSectionRoute_TransferPath_IsNotRegistered - same tautology defect already fixed in Story 1.5's analogous test"
+    owner: "backend-engineer"
+    status: open
+  - epic: 1
+    action: "Run the 5+ //go:build integration tests against a real live network at least once - none have executed yet in this epic"
+    owner: "fabric-engineer"
+    status: open
