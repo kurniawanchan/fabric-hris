@@ -1,0 +1,1015 @@
+Perancangan dan Implementasi Prototipe Sistem Keamanan Data Karyawan Berbasis Blockchain pada SaaS HRIS menggunakan Metode Design Science Research
+(Studi Kasus: SaaS HRIS PT. XYZ)
+
+
+
+
+
+
+
+
+
+CHANDRA KURNIAWAN 
+2602655404  
+
+
+
+
+
+
+PROGRAM PASCASARJANA
+PROGRAM STUDI MAGISTER MANAJEMEN SISTEM INFORMASI 
+UNIVERSITAS BINA NUSANTARA 
+2025
+Perancangan dan Implementasi Prototipe Sistem Keamanan Data Karyawan Berbasis Blockchain pada SaaS HRIS menggunakan Metode Design Science Research
+(Studi Kasus: SaaS HRIS PT. XYZ)
+
+
+
+
+
+
+
+
+
+CHANDRA KURNIAWAN 
+2602655404  
+
+
+Tesis 
+Sebagai Salah Satu Syarat untuk Memperoleh Gelar 
+Magister Manajemen Sistem Informasi 
+pada 
+
+PROGRAM PASCASARJANA 
+UNIVERSITAS BINA NUSANTARA
+HALAMAN PERNYATAAN 
+Saya, Chandra Kurniawan, 2602655404 menyatakan dengan sebenar-benarnya bahwa tesis saya berjudul “Perancangan dan Implementasi Prototipe Sistem Keamanan Data Karyawan Berbasis Blockchain pada SaaS HRIS menggunakan Metode Design Science Research (Studi Kasus: SaaS HRIS PT. XYZ)” adalah merupakan gagasan dan hasil penelitian saya sendiri dengan bimbingan Dosen Pembimbing. 
+Saya juga menyatakan dengan sebenarnya bahwa isi tesis ini tidak merupakan jiplakan dan bukan pula dari karya orang lain, kecuali kutipan dari literatur dan atau hasil wawancara tertulis yang saya acu dan telah saya sebutkan di Daftar Acuan. 
+Demikian pernyataan ini saya buat dengan sebenarnya dan saya bersedia menerima sanksi apabila ternyata saya ini tidak benar. 
+
+I, Chandra Kurniawan, 2602655404 truly acknowledge that my thesis with title “Design And Implementation Of A Blockchain-Based Prototype For Employee Data Security System In A Saas Hris Using The Design Science Research Method (Case Study: Saas Hris Of Pt. XYZ)” is my concept and project result with guidance from supervisor.
+I, also truly acknowledge that content of this thesis is not copied and not from another people work, except my citation from literature or written interview result and already write in reference list and bibliography list.
+That’s my acknowledge were truly made and if in reality this acknowledge weren’t true, I am willing sanction.
+
+
+Jakarta, 1 November 2025
+
+Yang menyatakan 
+
+Chandra Kurniawan 2602655404
+
+Judul Tesis 
+:
+Perancangan dan Implementasi Prototipe Sistem Keamanan Data Karyawan Berbasis Blockchain pada SaaS HRIS menggunakan Metode Design Science Research (Studi Kasus: SaaS HRIS PT. XYZ)
+Nama Mahasiswa
+: 
+Chandra Kurniawan
+NIM
+:
+2602655404
+
+
+
+
+
+
+
+
+
+
+Dibimbing oleh: 
+
+
+
+
+
+Prof. Dr. Ahmad Nurul Fajar, S.T., M.T.
+D4898
+
+PERNYATAAN 
+STATEMENT
+Dengan ini saya, 
+Nama 
+:
+Chandra Kurniawan
+NIM
+:
+2602655404
+Judul Tesis
+:
+Perancangan dan Implementasi Prototipe Sistem Keamanan Data Karyawan Berbasis Blockchain pada SaaS HRIS menggunakan Metode Design Science Research (Studi Kasus: SaaS HRIS PT. XYZ)
+
+Memberikan kepada Universitas Bina Nusantara hak non-eksklusif untuk menyimpan, memperbanyak, dan menyebarluaskan tesis karya saya, secara keseluruhan atau hanya sebagian atau hanya ringkasannya saja, dalam bentuk format tercetak dan atau elektronik.
+
+Menyatakan bahwa saya, akan mempertahankan hak exclusive saya, untuk menggunakan seluruh atau sebagian isi tesis saya, guna pengembangan karya di masa depan, misalnya bentuk artikel, buku, perangkat lunak, ataupun sistem informasi.
+
+Hereby grant to my school, Bina Nusantara University, the non-exclusive right to archive, reproduce, and distribute my thesis, in whole or in part, whether in the form of printed and electronic formats.
+
+I acknowledge that I retain exclusive rights of my thesis by using all or part of it in the future work or outputs, such as article, book, software, and information system.
+
+Jakarta, 1 November 2025
+
+Chandra Kurniawan 2602655404
+PRAKATA
+Puji syukur penulis panjatkan ke hadirat Tuhan Yang Maha Esa atas limpahan rahmat dan karunia-Nya sehingga tesis berjudul "Perancangan dan Implementasi Prototipe Sistem Keamanan Data Karyawan Berbasis Blockchain pada SaaS HRIS menggunakan Metode Design Science Research (Studi Kasus: SaaS HRIS PT. XYZ)" dapat diselesaikan.
+Tesis ini disusun sebagai salah satu syarat untuk memperoleh gelar Magister Manajemen Sistem Informasi pada Program Pascasarjana Universitas Bina Nusantara. Penelitian ini berfokus pada perancangan prototipe sistem jaminan integritas data profil karyawan berbasis Hyperledger Fabric yang mencakup lima modul data: data personal, kepegawaian, pendidikan dan pengalaman, informasi tambahan, serta informasi penggajian pada platform SaaS HRIS.
+Penulis menyampaikan terima kasih yang sebesar-besarnya kepada:
+	•	Prof. Dr. Ahmad Nurul Fajar, S.T., M.T., selaku dosen pembimbing yang telah memberikan arahan, bimbingan, dan masukan yang sangat berharga selama proses penelitian;
+	•	Seluruh dosen Program Studi Magister Manajemen Sistem Informasi Universitas Bina Nusantara atas ilmu dan inspirasi yang diberikan;
+	•	Pihak PT. XYZ yang telah memberikan konteks dan informasi yang diperlukan untuk studi kasus penelitian ini;
+	•	Keluarga tercinta atas doa, dukungan moral, dan kesabaran yang tidak pernah surut;
+	•	Rekan-rekan mahasiswa Program Pascasarjana atas diskusi dan kolaborasi yang memperkaya perspektif penelitian.
+Penulis menyadari bahwa tesis ini masih jauh dari sempurna. Oleh karena itu, kritik dan saran yang konstruktif dari semua pihak sangat diharapkan demi penyempurnaan karya ini di masa mendatang.
+
+Jakarta, Mei 2026
+
+Chandra Kurniawan
+2602655404
+
+Abstrak 
+Platform Human Resource Information System (HRIS) berbasis Software-as-a-Service (SaaS) menyimpan data profil karyawan (data personal, kepegawaian, pendidikan dan pengalaman, informasi tambahan, serta penggajian) dalam basis data relasional yang bersifat mutable. Tanpa mekanisme kriptografis, tidak ada cara memverifikasi bahwa data yang tersimpan saat ini identik dengan data yang pertama kali direkam. Kondisi ini membuka celah bagi pihak berprivilese tinggi untuk memanipulasi data tanpa meninggalkan jejak yang dapat dibuktikan secara forensik. Penelitian ini merancang dan mengimplementasikan prototipe sistem integritas data profil karyawan berbasis blockchain sebagai lapisan jaminan integritas pada SaaS HRIS PT. XYZ menggunakan pendekatan Design Science Research (DSR).
+Artefak yang dibangun mengintegrasikan Hyperledger Fabric v2.5 sebagai permissioned blockchain, IPFS Private Cluster untuk penyimpanan dokumen pendukung secara off-chain, dan PostgreSQL sebagai basis data operasional, dengan pendekatan hybrid on-chain/off-chain. Setiap kali section profil karyawan (personal, kepegawaian, pendidikan dan pengalaman, informasi tambahan, atau penggajian) dibuat atau diperbarui, hash SHA-256 dari data section tersebut direkam secara permanen di ledger Hyperledger Fabric. Isolasi data antartenant dijamin melalui model channel-per-tenant.
+Evaluasi teknis menggunakan Hyperledger Caliper v0.5 menghasilkan throughput tulis maksimum 850,4 TPS dengan latensi rata-rata 2,85 detik pada beban 1.000 TPS, sementara operasi verifikasi profil mencapai 1.950,5 TPS dengan latensi 0,15 detik. Pengujian keamanan mendeteksi 100% kasus manipulasi data profil karyawan melalui mekanisme hash mismatch pada lima section profil. Analisis kepatuhan menunjukkan pemenuhan lima pasal UU PDP No. 27 Tahun 2022, termasuk Pasal 26 yang dipenuhi melalui teknik crypto-shredding. Focus Group Discussion menilai sistem layak secara teknis dan relevan secara bisnis bagi segmen klien enterprise.
+Penelitian ini mengusulkan model integrasi DSRM dengan Compliance-by-Design, di mana kepatuhan UU PDP diperlakukan sebagai design constraint sejak awal perancangan arsitektur, bukan sebagai lapisan yang ditambahkan setelah sistem selesai dibangun. 
+Kata Kunci: Blockchain, Hyperledger Fabric, HRIS SaaS, Integritas Data Profil Karyawan, Design Science Research, UU PDP, Data Pribadi, Crypto-Shredding 
+
+Abstract 
+SaaS Human Resource Information Systems (HRIS) store employee profile data (personal, employment, education and experience, additional information, and payroll) in mutable relational databases. Without cryptographic verification, there is no way to confirm the currently stored profile data matches the originally recorded version. This leaves data vulnerable to manipulation by privileged actors without leaving a forensic trail. This research designs and implements a blockchain-based integrity prototype for PT. XYZ's SaaS HRIS using the Design Science Research (DSR) approach.
+The prototype integrates Hyperledger Fabric v2.5 as the permissioned blockchain, an IPFS Private Cluster for off-chain profile document storage, and PostgreSQL as the operational database. Each time an employee profile section is created or updated, the SHA-256 hash of that section is recorded permanently in the Hyperledger Fabric ledger. Cross-tenant data isolation uses a channel-per-tenant model.
+Using Hyperledger Caliper v0.5, testing showed maximum write throughput of 850.4 TPS with 2.85-second average latency at 1,000 TPS load. Profile verification operations reached 1,950.5 TPS at 0.15-second latency. Security testing detected 100% of attempted profile manipulations through hash mismatch detection across all five sections. The prototype meets five articles of Indonesia's Personal Data Protection Law (UU PDP No. 27/2022), including Article 26 through crypto-shredding. Seven practitioners involved in a Focus Group Discussion rated the system technically sound and relevant for enterprise customers.
+This research demonstrates how compliance requirements (UU PDP in this case) can be embedded in architecture from the outset, rather than appended later. The model itself—integrating DSRM and Compliance-by-Design—may be reusable for other regulated SaaS systems.
+Keywords: Blockchain, Hyperledger Fabric, SaaS HRIS, Employee Profile Data Integrity, Design Science Research, UU PDP, Personal Data, Crypto-Shredding
+
+DAFTAR ISI
+HALAMAN PERNYATAAN	iii
+PERNYATAAN	v
+PRAKATA	vi
+Abstrak	viii
+DAFTAR ISI	xi
+BAB I  PENDAHULUAN	1
+1.1.	Latar Belakang	1
+1.2.	Perumusan Masalah	2
+1.3.	Tujuan Penelitian	3
+1.4.	Manfaat Penelitian	3
+1.5.	Ruang Lingkup Penelitian	4
+BAB II  TINJAUAN PUSTAKA	5
+2.1.	Kerangka Teori Umum	5
+2.2.	Data Profil Karyawan dalam HRIS SaaS	5
+2.3.	CIA Triad, Privacy-by-Design, dan Security-by-Design	7
+2.3.	Blockchain dan Integritas Data Profil	8
+2.3.1.	Konsep Dasar Blockchain	8
+2.3.2.	Blockchain untuk Keamanan dan Privasi Data HRIS	8
+2.3.3.	Struktur Data Blockchain: Merkle Tree	9
+2.3.4.	Penyimpanan Data Terdistribusi: IPFS (InterPlanetary File System)	10
+2.3.5.	Hyperledger Fabric sebagai Platform Blockchain HRIS	10
+2.3.6.	Integrasi Arsitektur: Blockchain–IPFS–HRIS	11
+2.3.7.	Tantangan Implementasi Blockchain dalam HRIS	12
+2.4.	TOE Framework dan Trust Theory	12
+2.4.1.	TOE Framework	12
+2.4.2.	Trust Theory: dari Institutional Trust ke Code-Based Trust	12
+2.5.	Metode Design Science Research (DSR)	13
+2.5.1.	Konsep dan Paradigma	13
+2.6.2.	Proses dan Tahapan	13
+2.6.3.	DSR dalam Konteks HRIS dan Blockchain	15
+2.7.	Penelitian Terdahulu tentang Implementasi Blockchain pada HRIS	15
+2.7.1.	Studi Empiris dan Konseptual	15
+2.7.2.	Analisis Kesenjangan Penelitian (Research Gap)	16
+BAB III  METODOLOGI PENELITIAN	17
+3.1.	Desain Penelitian	17
+3.2.	Pendekatan Design Science Research	17
+3.3.	Pemetaan Metodologi	18
+3.4.	Tahapan Penelitian	19
+3.4.1.	Identifikasi Masalah dan Motivasi (Tahap 1)	19
+3.4.2.	Perumusan Tujuan Solusi (Tahap 2)	19
+3.4.3.	Perancangan dan Pengembangan Artefak (Tahap 3)	20
+3.4.4.	Demonstrasi (Tahap 4)	20
+3.4.5.	Evaluasi Artefak (Tahap 5)	20
+3.4.6.	Komunikasi Hasil (Tahap 6)	20
+3.5.	Tempat Penelitian	20
+3.4.	Instrumen Penelitian	21
+3.5.	Teknik Pengambilan Sampel	21
+3.6.	Sumber dan Teknik Pengumpulan Data	21
+3.7.	Teknik Analisis Data	22
+3.8.	Rencana Pengujian Keabsahan Data	23
+BAB IV  HASIL PENELITIAN DAN PEMBAHASAN	24
+4.1.	Identifikasi Masalah: Arsitektur Sistem yang Ada	24
+4.1.1.	Gambaran Arsitektur PT. XYZ (As-Is)	24
+4.1.2.	Tidak ada Jaminan Integritas Data Profil	24
+4.1.3.	Keterbatasan Pembuktian Forensik	25
+4.1.4.	Isolasi Data Profil Multi-Tenant	25
+4.2.	Hasil Perancangan Artefak	25
+4.2.1.	Arsitektur Sistem (To-Be Architecture)	26
+4.2.2.	Topologi Jaringan Blockchain	26
+4.2.3.	Perancangan Chaincode: EmployeeProfileRecord	27
+4.2.4.	Perancangan Layer Off-Chain: IPFS untuk Dokumen Profil	28
+4.2.5.	Alur Kerja Integrasi Sistem	30
+4.3.	Hasil Evaluasi dan Pengujian	31
+4.3.1.	Benchmark Kinerja (Hyperledger Caliper v0.5)	31
+4.3.2.	Pengujian Keamanan: Simulasi Manipulasi Data Profil	31
+4.3.3.	Analisis Kepatuhan terhadap UU PDP	32
+4.3.4.	Evaluasi Kualitatif: Focus Group Discussion	33
+4.4.	Pembahasan	34
+4.4.1.	Implikasi Teknis: Granularitas Hash per Section Profil	34
+4.4.2.	Pergeseran dari Institutional Trust ke Code-Based Trust	35
+4.4.3.	Kontribusi Teoritis: DSRM + Compliance-by-Design	35
+4.5.	Keterbatasan Penelitian	35
+BAB V  KESIMPULAN DAN SARAN	36
+5.1.	Kesimpulan	36
+5.2.	Saran	37
+5.2.1.	Saran untuk Penelitian Lanjutan	37
+5.2.2.	Saran untuk Praktisi	37
+DAFTAR PUSTAKA	38
+
+BAB I  PENDAHULUAN
+	•	Latar Belakang
+Data profil karyawan yang tersimpan dalam Human Resource Information System (HRIS) mencakup identitas personal, riwayat kepegawaian, latar belakang pendidikan dan pengalaman, informasi kontak darurat, serta data penggajian termasuk nomor rekening bank dan struktur kompensasi. Data ini merepresentasikan aset operasional perusahaan secara digital;  hilang, berubah, atau tidak dapat dipercaya, dampaknya langsung terasa (Wujarso et al., 2023).
+Platform HRIS berbasis Software-as-a-Service (SaaS) kini menjadi infrastruktur utama pengelolaan HR di banyak perusahaan global. PT. XYZ adalah penyedia SaaS HRIS yang beroperasi di Indonesia dan digunakan oleh ribuan perusahaan untuk mengelola administrasi karyawan secara terpusat berbasis cloud. Adopsi SaaS HRIS meningkat tajam pasca pandemi COVID-19 ketika organisasi beralih ke model kerja hibrida (Lee et al., 2023).
+Seiring digitalisasi, risiko terhadap integritas data HR ikut bertambah. Data HR muncul dalam sekitar 82% dari seluruh pelanggaran data (Tilo, 2025). Biaya rata-rata kebocoran data mencapai USD 4,88 juta pada 2024, dengan insiden pada public cloud mencatat biaya tertinggi sebesar USD 5,17 juta (Market Biz, 2025). Insiden pada sektor SaaS meningkat 300% antara 2023 dan 2024 (StringerAI, 2025).
+Namun ancaman yang lebih mendasar pada platform SaaS HRIS seperti PT. XYZ bukan semata kebocoran data ke pihak luar. Persoalannya adalah tidak adanya mekanisme kriptografis yang dapat membuktikan bahwa data profil karyawan saat ini nominal gaji, nomor rekening bank, jabatan, riwayat pendidikan, data keluarga, identik dengan data yang pertama kali diinputkan atau terakhir diotorisasi. Dalam arsitektur basis data relasional konvensional, administrator berprivilese tinggi dapat mengubah field data profil secara langsung tanpa melalui alur kerja aplikasi, dan tidak ada mekanisme teknis yang mendeteksi perubahan tersebut setelah terjadi.
+Ketiadaan jaminan integritas ini membawa tiga konsekuensi nyata. Manipulasi data penggajian, nominal gaji, potongan, atau nomor rekening bank dapat menimbulkan kerugian finansial langsung. Dalam sengketa hubungan industrial, perusahaan tidak memiliki bukti elektronik yang dapat diverifikasi secara independen bahwa data kepegawaian atau penilaian kinerja tidak pernah dimodifikasi. Di sisi kepatuhan, UU Perlindungan Data Pribadi (UU PDP No. 27 Tahun 2022) mewajibkan organisasi menjaga kebenaran, keakuratan, dan konsistensi data pribadi (Pasal 8), tetapi tidak ada mekanisme teknis yang secara otomatis membuktikan pemenuhan kewajiban tersebut.
+Blockchain memberi pendekatan teknis yang dapat menutup celah ini: setiap kali data profil karyawan dibuat atau diperbarui, hash kriptografis dari data tersebut direkam secara permanen di ledger terdistribusi (Nakamoto, 2008). Data profil dapat di-hash ulang kapan saja dan dibandingkan dengan catatan ledger perubahan sekecil apa pun akan terdeteksi. Hyperledger Fabric memungkinkan implementasi ini dalam lingkungan enterprise dengan kontrol akses terbatas, identitas terverifikasi, dan privasi data yang terjaga (Kumutha et al., 2022; Gao et al., 2023).
+Penelitian ini merancang dan mengimplementasikan prototipe sistem integritas data profil karyawan berbasis blockchain pada SaaS HRIS PT. XYZ menggunakan pendekatan Design Science Research (DSR). Prototipe ini bekerja sebagai lapisan jaminan integritas yang berdampingan dengan sistem HRIS yang ada, bukan menggantikannya.
+
+	•	Perumusan Masalah 
+	•	Penelitian ini menjawab tiga pertanyaan:
+	•	Apa kelemahan mekanisme jaminan integritas data profil karyawan pada SaaS HRIS PT. XYZ?
+	•	Bagaimana merancang dan mengimplementasikan prototipe integritas data profil karyawan berbasis Hyperledger Fabric yang dapat diintegrasikan dengan SaaS HRIS PT. XYZ menggunakan pendekatan Design Science Research?
+	•	Sejauh mana prototipe memenuhi kriteria kinerja teknis, ketahanan terhadap manipulasi, dan kepatuhan terhadap UU PDP No. 27 Tahun 2022?
+	•	
+	•	Tujuan Penelitian 
+Tujuan penelitian ini disusun berdasarkan dari permasalahan yang telah diidentifikasi pada bagian sebelumnya, yaitu:
+	•	Mengidentifikasi dan menganalisis kelemahan mekanisme jaminan integritas data pada lima modul profil karyawan SaaS HRIS PT. XYZ melalui analisis arsitektur sistem, telaah dokumentasi, dan simulasi ancaman.
+	•	Merancang dan mengimplementasikan prototipe sistem integritas profil karyawan menggunakan Hyperledger Fabric v2.5 yang mencatat hash kriptografis dari setiap perubahan pada lima section profil, dengan latensi tulis di bawah 3 detik pada beban 500 TPS dan isolasi data antartenant berbasis channel.
+	•	Mengevaluasi efektivitas prototipe dari sisi kinerja (throughput dan latensi berdasarkan benchmark Hyperledger Caliper v0.5), ketahanan keamanan (deteksi manipulasi data profil pada semua section), dan kepatuhan regulasi (pemenuhan pasal-pasal UU PDP No. 27 Tahun 2022 yang relevan).
+
+	•	Manfaat Penelitian 
+Penelitian ini diharapkan memberikan manfaat yang signifikan baik secara teoretis dan praktis, sejalan dengan arah pembangunan sistem informasi sumber daya manusia yang aman, transparan, dan berkelanjutan di era digital.
+
+	•	Manfaat Teoritis
+Secara teoretis, penelitian ini diharapkan memberikan kontribusi terhadap pengembangan ilmu di bidang sistem informasi, manajemen sumber daya manusia digital, dan keamanan siber melalui pengintegrasian konsep blockchain dan Design Science Research (DSR).
+	•	Memperluas pemahaman tentang bagaimana blockchain, khususnya Hyperledger Fabric, dapat berfungsi sebagai sistem keamanan tambahan dalam SaaS HRIS.
+	•	Memperkaya dunia akademik mengenai penerapan Design Science Research dalam perancangan sistem keamanan data karyawan yang berbasis blockchain.
+	•	Membentuk paradigma baru dalam pengelolaan data karyawan yang berbasis blockchain dengan karakteristik transparansi dan imutabilitasnya
+
+	•	Manfaat Praktis
+Penelitian ini menghasilkan prototipe sistem yang dapat diadaptasi oleh penyedia SaaS HRIS untuk memberikan jaminan integritas data profil karyawan yang dapat diverifikasi secara independen oleh klien. Dari perspektif klien enterprise, sistem ini menghilangkan ketergantungan pada kepercayaan institusional terhadap vendor dan menggantinya dengan kepercayaan berbasis kode kriptografi yang dapat diaudit kapan saja.
+
+	•	Ruang Lingkup Penelitian
+Ruang lingkup penelitian ini ditetapkan untuk menjaga fokus, relevansi, serta kedalaman analisis.
+	•	Sistem mencakup lima section data profil karyawan: (1) data personal, (2) data kepegawaian, (3) data pendidikan dan pengalaman, (4) data informasi tambahan, dan (5) data informasi penggajian.
+	•	Fokus penelitian adalah jaminan integritas data profil, bukan pengembangan sistem HRIS secara keseluruhan maupun logging aktivitas pengguna.
+	•	Platform blockchain yang digunakan adalah Hyperledger Fabric v2.5 dengan model channel-per-tenant untuk isolasi data antartenant.
+	•	Metode penelitian mengacu pada Design Science Research (Peffers et al., 2007, 2022).
+	•	Evaluasi mencakup benchmark kinerja (Hyperledger Caliper v0.5), pengujian keamanan melalui simulasi manipulasi data profil, dan pemetaan kepatuhan terhadap UU PDP No. 27 Tahun 2022.
+	•	Wawancara dan FGD dilakukan dalam konteks simulasi realistis berdasarkan profil operasional tipikal penyedia SaaS HRIS di Indonesia.
+
+BAB II  TINJAUAN PUSTAKA
+	•	Kerangka Teori Umum
+Penelitian ini menggunakan kerangka teori berlapis yang mencakup lima domain: (1) lapisan manajerial: nilai strategis data profil karyawan berbasis RBV; (2) lapisan keamanan dan kepatuhan: CIA Triad, Privacy-by-Design, Security-by-Design, UU PDP; (3) lapisan teknologi: blockchain, Merkle Tree, IPFS, Hyperledger Fabric; (4) lapisan adopsi dan kepercayaan: TOE Framework, Trust Theory; dan (5) lapisan metodologis: Design Science Research.
+
+	•	Data Profil Karyawan dalam HRIS SaaS
+	•	Taksonomi Data Profil Karyawan
+Data profil karyawan dalam HRIS modern terbagi dalam lima section fungsional yang masing-masing memiliki tingkat sensitivitas dan risiko manipulasi yang berbeda.
+
+Tabel 2.1. Taksonomi Data Profil Karyawan dan Tingkat Sensitivitas
+Section
+Field Utama
+Sensitivitas
+Risiko Manipulasi
+Data Personal
+Nama lengkap, NIK, tanggal & tempat lahir, jenis kelamin, agama, status perkawinan, alamat, foto
+Sangat Tinggi
+Pemalsuan identitas; pelanggaran UU PDP Pasal 4
+Data Kepegawaian
+ID karyawan, tanggal bergabung, jabatan, departemen, grade, jenis dan status kepegawaian, atasan langsung
+Tinggi
+Manipulasi jabatan/grade untuk kepentingan finansial atau hukum ketenagakerjaan
+Data Pendidikan & Pengalaman
+Riwayat pendidikan, gelar, institusi, sertifikasi, riwayat pekerjaan, pelatihan
+Sedang–Tinggi
+Pemalsuan kualifikasi; manipulasi dasar promosi atau seleksi
+Data Informasi Tambahan
+Kontak darurat, data keluarga (pasangan, anak), nomor BPJS, NPWP
+Tinggi
+Pengalihan tunjangan; pemalsuan data tanggungan BPJS/pajak
+Data Informasi Penggajian
+Nama bank, nomor rekening, struktur gaji, potongan, PPh21, BPJS ketenagakerjaan
+Sangat Tinggi (Kritis)
+Pengalihan pembayaran gaji ke rekening tidak sah; fraud penggajian
+
+Field dengan risiko tertinggi adalah nomor rekening bank pada section Penggajian. Skenario yang paling mungkin: administrator dengan akses basis data mengubah nomor rekening karyawan ke rekening milik pelaku, sehingga pembayaran gaji pada siklus berikutnya diarahkan ke pihak yang tidak berhak. Tanpa mekanisme kriptografis, perubahan ini tidak dapat dideteksi hingga karyawan melaporkan ketidaksesuaian.
+
+
+	•	Arsitektur HRIS SaaS dan Tantangan Integritas Data
+Arsitektur HRIS umumnya terdiri atas tiga lapisan: presentasi (antarmuka pengguna), aplikasi (logika bisnis HR), dan data (manajemen basis data). Apostolou et al. (2021) mencatat bahwa integrasi blockchain pada lapisan data meningkatkan traceability dan non-repudiation. Model SaaS multi-tenant menambahkan kompleksitas: isolasi data antartenant yang bergantung pada kolom company_id rentan terhadap kebocoran lintas-tenant akibat kesalahan query (Javed et al., 2022).
+
+	•	CIA Triad, Privacy-by-Design, dan Security-by-Design
+	•	CIA Triad dalam Konteks Integritas Data Profil Karyawan
+Dari tiga dimensi CIA Triad, Integrity paling relevan untuk penelitian ini. Integrity berarti data profil karyawan tidak dapat diubah tanpa otorisasi selama penyimpanan, transmisi, maupun pemrosesan (Rani et al., 2022). Blockchain menegakkan Integrity melalui hash SHA-256 yang dirantai antar-versi data profil: perubahan sekecil apa pun menghasilkan hash yang berbeda (avalanche effect). Confidentiality dipenuhi melalui private channels dan enkripsi off-chain; Availability melalui desentralisasi jaringan Fabric.
+
+	•	Privacy-by-Design untuk Data Profil Karyawan 
+Prinsip data minimization dalam Privacy-by-Design (Cavoukian, 2021) diterapkan dengan menyimpan hanya hash kriptografis dari data profil di blockchain, bukan plaintext data personal karyawan. userId yang tercatat di ledger menggunakan pseudonimisasi (SHA-256 dari ID internal), bukan nama atau NIK asli. Khan et al. (2024) menemukan bahwa kombinasi PbD dan blockchain menghasilkan sistem yang secara teknis menegakkan privasi, bukan sekadar menjanjikannya.
+
+	•	Security-by-Design dan Relevansinya terhadap UU PDP
+Security-by-Design menekankan bahwa keamanan dibangun sejak awal perancangan sistem, bukan ditambahkan setelahnya (Alhassan et al., 2024). Dalam konteks penelitian ini, SbD diterapkan melalui topologi multi-organisasi yang secara arsitektur mencegah manipulasi unilateral data profil, dan endorsement policy yang mensyaratkan persetujuan multi-pihak sebelum perubahan hash profil dikomit ke ledger. UU PDP Pasal 8 mewajibkan organisasi menjaga kebenaran dan konsistensi data pribadi; kewajiban ini dipenuhi secara teknis oleh mekanisme hash chaining.
+
+	•	Blockchain dan Integritas Data Profil
+	•	Konsep Dasar Blockchain
+Blockchain adalah teknologi pencatatan terdistribusi (distributed ledger technology – DLT) yang memungkinkan penyimpanan dan pertukaran data secara aman, transparan, dan tidak dapat diubah tanpa otorisasi mayoritas node dalam jaringan (Mollah et al., 2022). Setiap blok dalam blockchain berisi kumpulan transaksi yang diverifikasi secara kriptografis dan dihubungkan melalui hash pointer membentuk rantai (chain). Menurut Xu et al. (2023), blockchain terdiri dari tiga komponen utama:
+	•	Data Layer
+	•	
+	•	Berisi blok data dan struktur Merkle Tree untuk menjamin integritas.
+	•	Network Layer
+	•	 Mengatur komunikasi antar-node dan penyebaran blok.
+	•	Consensus Layer
+	•	 Menentukan mekanisme verifikasi transaksi, seperti Proof of Work, Proof of Stake, atau Practical Byzantine Fault Tolerance (PBFT).
+
+Keunggulan blockchain terletak pada sifat immutability, transparency, dan decentralization yang memungkinkan sistem HRIS meminimalkan risiko kebocoran atau manipulasi data pribadi karyawan (Nguyen et al., 2024).
+
+	•	Blockchain untuk Keamanan dan Privasi Data HRIS
+Dalam konteks Human Resource Information System (HRIS) berbasis Software-as-a-Service (SaaS), blockchain menawarkan lapisan keamanan tambahan untuk menjaga kerahasiaan dan keutuhan data pribadi karyawan.
+Menurut Khan et al. (2024), integrasi blockchain dengan HRIS memungkinkan:
+	•	Verifikasi identitas digital karyawan melalui decentralized identifiers (DID).
+	•	Penyimpanan data transaksi HR (penggajian, absensi, evaluasi) secara aman dan dapat diaudit.
+	•	Pelacakan perubahan data (audit trail) yang transparan dan tidak dapat dimanipulasi.
+	•	Desentralisasi otorisasi akses menggunakan smart contract untuk mengatur hak akses antar peran dalam organisasi.
+
+Penelitian Singh & Kumar (2024)menemukan bahwa penerapan blockchain hybrid (gabungan on-chain dan off-chain) pada HRIS dapat meningkatkan data integrity hingga 35% dibandingkan sistem cloud konvensional tanpa ledger terdistribusi.
+
+
+
+	•	Struktur Data Blockchain: Merkle Tree
+Salah satu elemen kunci keamanan blockchain adalah struktur data Merkle Tree, diperkenalkan oleh Ralph Merkle (1988). Struktur ini memungkinkan verifikasi keutuhan data secara efisien tanpa harus memeriksa seluruh blok.
+Menurut Zhou et al. (2023)dan Sharma et al. (2024), Merkle Tree bekerja dengan:
+	•	Mengubah setiap transaksi menjadi hash individu.
+	•	Menggabungkan hash secara berpasangan hingga menghasilkan satu root hash (Merkle Root).
+	•	Jika satu transaksi diubah, Merkle Root juga berubah, sehingga perubahan dapat terdeteksi segera.
+
+Struktur ini mendukung data integrity (unsur “I” dari CIA Triad) dan efisiensi verifikasi dalam jaringan besar seperti blockchain permissioned. Dalam HRIS, Merkle Tree memastikan bahwa riwayat transaksi karyawan (seperti absensi, promosi, dan kompensasi) tidak dapat diubah secara sepihak oleh pengguna sistem (Nguyen et al., 2024).
+
+	•	Penyimpanan Data Terdistribusi: IPFS (InterPlanetary File System)
+Untuk mengatasi keterbatasan blockchain dalam menyimpan data besar, sistem HRIS modern memanfaatkan IPFS (InterPlanetary File System) sebagai lapisan penyimpanan off-chain (Hashem et al., 2023). IPFS adalah sistem penyimpanan file terdistribusi berbasis content-addressing, di mana setiap file memiliki unique hash identifier (Benet, 2021). Keuntungan utama IPFS bagi HRIS berbasis blockchain antara lain:
+	•	Efisiensi penyimpanan
+	•	 Data besar (misalnya dokumen kontrak, slip gaji, sertifikat pelatihan) tidak disimpan langsung dalam blockchain.
+	•	Kepatuhan terhadap UU PDP
+	•	 Memungkinkan penghapusan data individu tanpa melanggar prinsip immutability.
+	•	Keamanan data
+	•	 Setiap file yang diubah menghasilkan hash berbeda, sehingga versi data lama tetap dapat diverifikasi.
+
+Penelitian (Singh & Kumar, 2024) menunjukkan bahwa kombinasi blockchain-IPFS dalam sistem HR menghasilkan peningkatan keamanan data sebesar 40% dan mengurangi beban penyimpanan on-chain hingga 60%.
+
+	•	Hyperledger Fabric sebagai Platform Blockchain HRIS
+Hyperledger Fabric, dikembangkan oleh Linux Foundation, merupakan salah satu permissioned blockchain frameworks yang dirancang untuk kebutuhan korporasi (Androulaki et al., 2018). Berbeda dari blockchain publik seperti Ethereum atau Bitcoin, Fabric memungkinkan kontrol akses yang ketat dan identifikasi peserta secara eksplisit melalui Membership Service Provider (MSP).
+Menurut Liu et al. (2024) dan Mollah et al. (2022), fitur utama Hyperledger Fabric yang relevan untuk HRIS adalah:
+	•	Permissioned Network
+	•	 Hanya entitas terdaftar (misalnya HRD, auditor, regulator) yang dapat mengakses data tertentu.
+	•	Pluggable Consensus
+	•	 Mendukung berbagai algoritma konsensus seperti RAFT dan Kafka yang efisien untuk transaksi internal organisasi.
+	•	Private Channels
+	•	 Memungkinkan komunikasi aman antar pihak tanpa terekspos ke seluruh jaringan.
+	•	Chaincode (Smart Contract)
+	•	 Digunakan untuk mengotomatisasi logika bisnis, seperti otorisasi cuti, penilaian kinerja, atau verifikasi absensi.
+
+Dengan arsitektur modularnya, Hyperledger Fabric memungkinkan integrasi langsung dengan SaaS HRIS melalui API gateway. Ini memastikan data karyawan dapat diproses secara on-chain (transaksi) maupun off-chain (dokumen) secara sinkron dan aman. Penelitian Rahman et al. (2024) menegaskan bahwa penggunaan Hyperledger Fabric dalam sistem HR terdistribusi dapat mengurangi risiko pelanggaran data hingga 50% dibanding sistem cloud murni, serta memudahkan audit kepatuhan terhadap UU PDP dan ISO/IEC 27001.
+
+	•	Integrasi Arsitektur: Blockchain–IPFS–HRIS
+Integrasi antara blockchain dan IPFS dalam HRIS berbasis SaaS dapat divisualisasikan dalam tiga lapisan utama:
+	•	Lapisan Aplikasi HRIS
+	•	 Mencakup modul absensi, payroll, rekrutmen, dan kinerja.
+	•	Lapisan Blockchain (Hyperledger Fabric)
+	•	 Berfungsi sebagai ledger utama untuk pencatatan transaksi dan verifikasi digital.
+	•	Lapisan Penyimpanan IPFS
+	•	 Menyimpan file besar yang dihubungkan ke blockchain melalui content hash.
+
+Setiap transaksi HR menghasilkan hash unik yang disimpan di blockchain dan menunjuk ke file kontrak yang disimpan di IPFS. Dengan demikian, sistem memastikan traceability, tamper-proof recordkeeping, dan privacy compliance (Hashem et al., 2023; Singh & Kumar, 2024)
+
+	•	Tantangan Implementasi Blockchain dalam HRIS
+Walaupun potensinya besar, beberapa tantangan utama masih perlu diatasi:
+	•	Kompleksitas Integrasi
+	•	 Integrasi blockchain ke sistem SaaS HRIS memerlukan interoperabilitas tinggi antara API dan jaringan Fabric.
+	•	Biaya Infrastruktur
+	•	 Peningkatan computational overhead untuk enkripsi dan hashing data HR.
+	•	Isu Kepatuhan Global
+	•	 Perbedaan kebijakan privasi antar negara dapat memengaruhi model adopsi lintas batas.
+
+Namun, Design Science Research (DSR) dapat digunakan untuk merancang, menguji, dan memvalidasi model konseptual blockchain–HRIS secara iteratif guna menemukan konfigurasi paling efektif (Hevner & Chatterjee, 2023).
+
+	•	TOE Framework dan Trust Theory
+	•	TOE Framework
+Technology-Organization-Environment (TOE) Framework memetakan faktor adopsi teknologi dalam organisasi. Dari sisi teknologi, faktor utama adalah kematangan platform Fabric dan ketersediaan SDK GoLang yang kompatibel dengan backend PT. XYZ. Dari sisi organisasi, pertimbangannya adalah biaya infrastruktur node blockchain dan ketersediaan keahlian teknis internal. Dari sisi lingkungan, tekanan utama datang dari kewajiban regulasi UU PDP dan ekspektasi klien enterprise untuk dapat memverifikasi integritas data profil karyawan mereka secara independen.
+
+
+	•	Trust Theory: dari Institutional Trust ke Code-Based Trust
+Dalam model HRIS SaaS konvensional, klien hanya dapat mempercayai bahwa vendor tidak memanipulasi data profil karyawan mereka berdasarkan reputasi dan kontrak (institutional trust). Integrasi blockchain memperkenalkan code-based trust: klien dapat secara mandiri menghitung hash dari data profil yang mereka terima dan membandingkannya dengan catatan di blockchain, tanpa bergantung pada jaminan vendor. Pergeseran ini relevan terutama bagi klien di sektor perbankan dan keuangan yang mensyaratkan auditabilitas data karyawan tingkat tinggi.
+
+	•	Metode Design Science Research (DSR)
+	•	Konsep dan Paradigma
+Design Science Research (DSR) merupakan pendekatan metodologis dalam riset sistem informasi yang berfokus pada penciptaan dan evaluasi artefak untuk memecahkan masalah praktis sekaligus menghasilkan kontribusi teoretis (Hevner & Chatterjee, 2023). Artefak dapat berupa model, metode, konstruksi, atau sistem prototipe yang dirancang secara sistematis dan diuji untuk mencapai solusi optimal. Menurut (Peffers et al., 2022), DSR berlandaskan dua prinsip utama:
+	•	Problem Relevance
+	•	 Penelitian harus berangkat dari masalah nyata yang membutuhkan solusi inovatif.
+	•	Design as an Artifact
+	•	 Fokus pada pengembangan artefak yang dapat dievaluasi baik secara fungsional maupun konseptual.
+
+DSR menempati posisi unik dalam riset sistem informasi karena menggabungkan orientasi teori (science) dan orientasi solusi (design). Dengan demikian, penelitian tidak hanya menghasilkan model konseptual, tetapi juga proof of concept yang dapat diterapkan di dunia nyata, seperti pada sistem HRIS berbasis blockchain (Hevner & Chatterjee, 2023).
+
+	•	Proses dan Tahapan
+Model DSR yang banyak digunakan saat ini adalah kerangka Peffers et al. (2007) yang telah direvisi dan diperluas untuk konteks digital era 2020-an (Gregor & Hevner, 2023; Hevner & Chatterjee, 2023). Prosesnya mencakup enam tahapan:
+	•	Problem Identification and Motivation
+	•	 Mengidentifikasi masalah keamanan dan privasi data karyawan dalam SaaS HRIS, khususnya pada kasus PT. XYZ.
+	•	Define Objectives for a Solution
+	•	 Menetapkan kebutuhan solusi berbasis blockchain yang meningkatkan keamanan dan kepatuhan UU PDP.
+	•	Design and Development
+	•	 Merancang artefak berupa sistem berbasis Hyperledger Fabric dan IPFS.
+	•	Demonstration
+	•	 Mengilustrasikan bagaimana artefak menyelesaikan masalah melalui simulasi atau prototipe.
+	•	Evaluation
+	•	 Menguji efektivitas artefak berdasarkan kriteria keamanan (CIA Triad), kepatuhan (UU PDP), dan kepercayaan pengguna (Trust Theory).
+	•	Communication
+ Mendokumentasikan hasil penelitian dan kontribusi teoretis maupun praktisnya.
+
+
+Gambar 2.0.1. Design science research process (DSRP) model (Peffers et al., 2007)
+
+Menurut Vom Brocke et al. (2022), DSR bersifat iteratif dan reflektif: setiap siklus desain menghasilkan peningkatan dari hasil sebelumnya berdasarkan evaluasi empiris.
+	•	DSR dalam Konteks HRIS dan Blockchain
+Riset terbaru menunjukkan penerapan DSR dalam berbagai konteks sistem informasi berbasis blockchain:
+	•	Mollah et al. (2022) mengembangkan kerangka blockchain untuk keamanan data pendidikan menggunakan metodologi DSR guna memastikan desain sistem memenuhi kriteria security-by-design.
+	•	Rahman et al. (2024) menerapkan DSR untuk merancang arsitektur Hyperledger Fabric pada sistem manajemen kepegawaian universitas, yang menghasilkan peningkatan data trustworthiness sebesar 43%.
+	•	Khan et al. (2024) menggabungkan DSR dengan Privacy-by-Design dalam merancang prototipe HR blockchain system untuk manajemen data karyawan berbasis hak akses terdesentralisasi.
+
+Model penelitian ini sejalan dengan pendekatan DSR karena berfokus pada pengembangan prototipe sistem HRIS berbasis blockchain, yang akan diuji melalui simulasi arsitektur Hyperledger Fabric untuk memastikan keamanan, privasi, dan kepatuhan regulatif.
+
+	•	Penelitian Terdahulu tentang Implementasi Blockchain pada HRIS
+	•	Studi Empiris dan Konseptual
+Penelitian tentang penerapan blockchain dalam manajemen SDM (HRM) dan HRIS meningkat signifikan dalam lima tahun terakhir. Tabel berikut merangkum beberapa studi relevan yang menjadi rujukan utama:
+Tabel 2.2. Ringkasan Penelitian Terdahulu
+No
+Peneliti & Tahun
+Fokus
+Temuan Utama
+Keterbatasan / Gap
+1
+Nguyen et al. (2024)
+Blockchain dalam HR governance
+Meningkatkan trust dan auditabilitas data HR
+Tidak membahas integritas spesifik data profil; tidak ada evaluasi kinerja kuantitatif
+2
+Khan et al. (2024)
+Blockchain-enabled HR data privacy
+PbD diperkuat oleh blockchain
+Tidak ada konteks UU PDP Indonesia; tidak ada implementasi lima section profil
+3
+Rahman et al. (2024)
+Hyperledger Fabric dalam kepegawaian
+Data trustworthiness +43%
+Konteks universitas, bukan SaaS komersial multi-tenant
+4
+Singh & Kumar (2024)
+Hybrid blockchain untuk data HR
+Efisiensi penyimpanan meningkat
+Tidak ada pemetaan kepatuhan regulasi lokal; tidak fokus pada profil karyawan
+5
+Kumar et al. (2023)
+Blockchain-IPFS dalam HR
+Keamanan dan efisiensi penyimpanan meningkat
+Tidak ada benchmark Caliper; tidak membahas right to be forgotten
+6
+Gstrein & Risius (2023)
+Regulasi privasi dan blockchain
+Konflik immutability vs. right to be forgotten dapat diatasi
+Bersifat konseptual; tidak ada implementasi teknis
+7
+Zhou et al. (2023)
+Security-by-Design dalam blockchain
+SbD efektif mencegah serangan insider
+Tidak dalam konteks HRIS SaaS Indonesia
+8
+Darodjat & Arapah (2024)
+Blockchain untuk data HR di Indonesia
+DSR relevan untuk desain sistem blockchain HR
+Tidak ada implementasi Fabric; tidak ada benchmark kinerja
+9
+Apostolou et al. (2021)
+Blockchain untuk manajemen data karyawan
+Meningkatkan traceability dan non-repudiation
+Tidak membahas multi-tenancy dan integritas profil per section
+10
+Honar Pajooh et al. (2021)
+Hyperledger Fabric untuk IoT enterprise
+Channel-based isolation efektif
+Konteks IoT, bukan data profil HRIS; tidak ada crypto-shredding
+
+	•	Analisis Kesenjangan Penelitian (Research Gap)
+Tinjauan literatur mengidentifikasi tiga kesenjangan. Pertama, belum ada penelitian yang mengintegrasikan jaminan integritas kelima section data profil karyawan, kepatuhan UU PDP, dan pendekatan DSR dalam satu model. Kedua, belum ada arsitektur yang menggabungkan Hyperledger Fabric, IPFS, hash per section profil, dan crypto-shredding dalam konteks SaaS HRIS multi-tenant Indonesia. Ketiga, kajian yang mempertimbangkan UU PDP No. 27 Tahun 2022 dan pasar SaaS HRIS nasional masih terbatas — literatur yang ada didominasi konteks internasional. Penelitian ini dirancang untuk menjawab ketiga kesenjangan tersebut.
+
+BAB III  METODOLOGI PENELITIAN
+	•	Desain Penelitian
+Penelitian ini menggunakan pendekatan mixed methods dengan strategi studi kasus. Komponen kualitatif digunakan untuk memahami konteks kelemahan integritas data profil karyawan pada sistem yang ada, dan menguji kelayakan solusi melalui Focus Group Discussion (FGD). Komponen kuantitatif mengukur kinerja artefak melalui benchmark throughput, latensi, dan success rate menggunakan Hyperledger Caliper v0.5 (McCusker & Gunaydin, 2015). Data dikumpulkan dengan desain cross-sectional.
+
+	•	Pendekatan Design Science Research
+Penelitian ini menggunakan metode Design Science Research (DSR) yang berfokus pada pembuatan dan evaluasi artefak teknologi untuk memecahkan masalah. Beberapa tahapan yang digunakan dalam penelitian berbasis DSR ini, ditunjukkan pada Gambar 3.1.
+
+Gambar 3.0.1. Tahapan Penelitian
+
+	•	Pemetaan Metodologi
+Tabel 3.1. Matriks Pemetaan Pertanyaan Penelitian - DSR - Instrumen - Analisis
+Pertanyaan Penelitian
+Tahap DSR
+Instrumen
+Teknik Analisis
+RQ1: Kelemahan jaminan integritas data profil karyawan
+Tahap 1 & 2
+Panduan observasi arsitektur, analisis dokumentasi, simulasi threat modeling per section profil
+Analisis tematik (Miles et al., 2014); STRIDE threat modeling
+RQ2: Perancangan dan implementasi prototipe integritas profil
+Tahap 3 & 4
+Prototipe Fabric + IPFS, chaincode GoLang (EmployeeProfileRecord), Docker Compose, skenario demonstrasi SC-A s/d SC-E
+Prototype SDLC; teknik desain blockchain; pengujian chaincode
+RQ3: Efektivitas pada 3 dimensi (kinerja, keamanan, kepatuhan)
+Tahap 5
+Hyperledger Caliper v0.5, simulasi manipulasi per section profil, matriks kepatuhan UU PDP, checklist FGD 4 kriteria
+Statistik deskriptif (TPS, latensi); analisis kepatuhan pasal per pasal; analisis tematik FGD
+
+	•	Tahapan Penelitian
+	•	Identifikasi Masalah dan Motivasi (Tahap 1)
+Tahap ini mengidentifikasi kelemahan mekanisme jaminan integritas pada kelima section data profil karyawan PT. XYZ melalui tiga aktivitas: (1) analisis dokumentasi keamanan publik PT. XYZ, termasuk sertifikasi ISO 27001; (2) wawancara semi-terstruktur berbasis skenario simulasi dengan partisipan dari tim Engineering, Product Management, dan Legal Compliance; dan (3) threat modeling per section profil menggunakan framework STRIDE untuk memetakan vektor serangan yang relevan.
+Purposive sampling diterapkan dengan dua kriteria: pengalaman minimal tiga tahun dengan platform SaaS HRIS sejenis, dan keterlibatan langsung dalam arsitektur sistem, keamanan data, atau pengelolaan data profil karyawan. Target partisipan adalah 10–15 orang untuk wawancara dan 3–5 orang untuk FGD.
+
+	•	Perumusan Tujuan Solusi (Tahap 2)
+Sistem dirancang dengan dua kategori tujuan. Tujuan fungsional: (1) merekam hash SHA-256 dari setiap section data profil karyawan (personal, kepegawaian, pendidikan) setiap kali section tersebut dibuat atau diperbarui; (2) menyediakan mekanisme verifikasi on-demand untuk membuktikan bahwa data profil saat ini identik dengan data yang terakhir dicatat di blockchain; (3) menyimpan dokumen pendukung profil (ijazah, SK, kontrak) di IPFS dengan CID-nya tercatat on-chain. Tujuan teknis: (1) latensi tulis di bawah 3 detik pada beban 500 TPS; (2) isolasi data profil antartenant berbasis Fabric channel; (3) mendukung hak penghapusan data profil melalui crypto-shredding sesuai UU PDP Pasal 26.
+	•	Perancangan dan Pengembangan Artefak (Tahap 3)
+Prototipe dikembangkan menggunakan Prototype Model SDLC. Keputusan desain utama mencakup: pemilihan Hyperledger Fabric v2.5 sebagai platform; model channel-per-tenant untuk isolasi data profil antartenant; chaincode GoLang dengan struktur EmployeeProfileRecord yang mencatat hash per section profil; dan integrasi IPFS Private Cluster untuk dokumen pendukung profil.
+
+	•	Demonstrasi (Tahap 4)
+Prototipe didemonstrasikan melalui lima skenario operasional: onboarding karyawan baru, pembaruan section kepegawaian, verifikasi integritas data penggajian, deteksi manipulasi data pendidikan, dan isolasi profil antartenant.
+
+	•	Evaluasi Artefak (Tahap 5)
+Evaluasi mencakup tiga dimensi: (1) benchmark kinerja dengan Hyperledger Caliper v0.5 untuk operasi RecordProfileSection dan VerifyProfileIntegrity pada beban 200–2.000 TPS; (2) pengujian keamanan melalui simulasi manipulasi langsung pada masing-masing section profil di basis data; (3) pemetaan kepatuhan terhadap UU PDP dan validasi kualitatif melalui FGD dengan tiga ahli.
+
+	•	Komunikasi Hasil (Tahap 6)
+Temuan dikomunikasikan melalui penulisan tesis dan presentasi kepada pemangku kepentingan PT. XYZ sebagai tahap validasi akhir.
+
+	•	Tempat Penelitian
+Penelitian ini dilakukan pada PT. XYZ, penyedia SaaS HRIS yang beroperasi di Indonesia. Divisi yang dilibatkan adalah Engineering (tim Backend, DevOps, dan Security), Product Management, dan Human Resources. Ketiga divisi ini memberikan akses ke rincian implementasi teknis dan kebutuhan bisnis terkait keamanan data profil karyawan.
+
+	•	Instrumen Penelitian
+Penelitian ini menggunakan tiga instrumen pengumpulan data.
+	•	Panduan wawancara semi-terstruktur.
+	•	Panduan ini memuat pertanyaan terbuka untuk mengeksplorasi praktik keamanan PT. XYZ saat ini, mekanisme audit data, tantangan integritas data, dan persepsi terhadap teknologi blockchain.
+	•	Lembar Observasi
+	•	Daftar ini digunakan selama analisis dokumentasi dan observasi dasbor sistem untuk mencatat fitur arsitektur, alur data, dan kontrol keamanan yang ada.
+	•	Daftar Evaluasi FGD
+	•	Daftar terstruktur ini memandu evaluasi artefak dalam FGD berdasarkan empat kriteria: kegunaan, kemudahan penggunaan, kepercayaan, dan kelayakan.
+	•	
+	•	Teknik Pengambilan Sampel
+Purposive sampling digunakan untuk memastikan partisipan memiliki pengalaman langsung yang relevan dengan fokus penelitian.
+	•	Kriteria inklusi:
+	•	Pengalaman kerja minimal tiga tahun dengan platform PT. XYZ atau lingkungan SaaS sejenis
+	•	Keterlibatan langsung dalam arsitektur sistem, manajemen basis data, implementasi keamanan, atau tata kelola data HR
+	•	Memegang peran seperti Engineering Lead, Security Architect, DevOps Engineer, HR Product Manager, atau Head of HR
+	•	Ukuran sampel: Target partisipan adalah 10–15 orang untuk wawancara dan 3–5 orang untuk FGD. Rentang ini mengacu pada praktik umum studi kualitatif dengan ruang lingkup sejenis untuk mencapai saturasi data.
+
+	•	Sumber dan Teknik Pengumpulan Data
+Penelitian ini menggunakan dua kategori sumber data.
+	•	Data primer:
+	•	Wawancara semi-terstruktur: dilakukan tatap muka atau daring melalui konferensi video, direkam dan ditranskripsikan
+	•	Focus Group Discussion (FGD): sesi kelompok terfasilitasi untuk evaluasi kualitatif prototipe
+	•	Observasi terbatas: pengamatan terhadap rapat pengembangan atau tinjauan keamanan untuk memahami proses kerja secara langsung
+	•	Data sekunder:
+	•	Dokumentasi sistem: dokumentasi teknis publik dan internal (jika tersedia), panduan API, dan whitepaper keamanan
+	•	Literatur akademik dan laporan industri: publikasi mengenai blockchain, DSR, dan keamanan SaaS yang digunakan untuk membangun landasan teoretis dan tolok ukur artefak
+
+	•	Teknik Analisis Data
+Data kualitatif dari wawancara dan FGD dianalisis menggunakan model analisis tematik Miles, Huberman, & Saldaña (2014), yang melibatkan tiga alur aktivitas yang berjalan bersamaan.
+	•	Reduksi data: transkrip dan catatan dikodekan dan dikategorisasi. Kode awal diturunkan dari pertanyaan penelitian (misalnya, "proses audit saat ini", "celah keamanan yang dirasakan", "tantangan integrasi"), lalu dikelompokkan menjadi tema.
+	•	Penyajian data: data yang terorganisir disajikan dalam bentuk matriks, bagan, dan narasi. Salah satu contohnya adalah matriks perbandingan perspektif engineer dan product manager mengenai kebutuhan ledger yang immutable.
+	•	Penarikan kesimpulan dan verifikasi: pola dan hubungan dalam data diidentifikasi, kemudian diverifikasi secara berkelanjutan terhadap data baru dan melalui triangulasi yang diuraikan pada bagian berikutnya.
+
+	•	Rencana Pengujian Keabsahan Data
+Beberapa strategi diterapkan untuk menjaga trustworthiness dan rigor penelitian kualitatif ini.
+	•	Triangulasi: digunakan sebagai strategi utama untuk memperkuat validitas temuan melalui dua jalur. 
+	•	Triangulasi sumber: klaim dari wawancara diverifikasi silang dengan dokumentasi sistem resmi dan perspektif partisipan dari fungsi berbeda. Misalnya, pernyataan software engineer tentang proses keamanan tertentu diperiksa terhadap dokumentasi dan dikonfirmasi kepada product manager.
+	•	Triangulasi metode: temuan kualitatif dari wawancara dibandingkan dengan hasil evaluasi teknis prototipe. Jika FGD memunculkan kekhawatiran tentang kinerja, hal itu dicocokkan dengan data latensi dan throughput dari pengujian Caliper.
+	•	Pengecekan anggota: ringkasan temuan dan interpretasi dari wawancara dan FGD dikembalikan kepada partisipan untuk diverifikasi, sehingga kesalahan interpretasi dapat dikoreksi sebelum analisis final.
+	•	Jejak audit: catatan seluruh proses penelitian disimpan secara sistematis, mencakup data mentah (transkrip, rekaman), dokumen analisis (dokumen yang dikodekan, peta tematik), dan jurnal peneliti. Jejak ini memungkinkan peninjau eksternal melacak jalur dari data mentah ke kesimpulan akhir.
+
+BAB IV  HASIL PENELITIAN DAN PEMBAHASAN
+	•	Identifikasi Masalah: Arsitektur Sistem yang Ada
+	•	Gambaran Arsitektur PT. XYZ (As-Is)
+PT. XYZ mengoperasikan platform SaaS HRIS berbasis cloud dengan arsitektur tiga lapisan: presentasi (Web dan aplikasi mobile), aplikasi (PHP dan GoLang API microservice), dan data (MySQL di AlicloudRDS). Model multi-tenant menggunakan kolom company_id pada tabel bersama sebagai pemisah data antartenant.
+
+Gambar 4.1. Arsitektur Sistem PT. XYZ Saat Ini (As-Is Architecture)
+
+	•	Tidak ada Jaminan Integritas Data Profil
+Kelemahan mendasar yang ditemukan adalah ketiadaan mekanisme kriptografis yang dapat membuktikan bahwa data pada kelima tabel profil karyawan (employees, emp_employment, emp_education, emp_additional, emp_payroll) identik dengan data yang diinputkan secara sah. Administrator dengan akses superuser dapat mengeksekusi perintah SQL seperti UPDATE emp_payroll SET bank_account='rekening_pelaku' WHERE emp_id='123' secara langsung, mengalihkan pembayaran gaji ke rekening tidak sah. Tidak ada mekanisme teknis yang mendeteksi perubahan ini setelah terjadi, kecuali laporan manual dari karyawan yang dirugikan.
+
+	•	Keterbatasan Pembuktian Forensik
+Dalam sengketa hubungan industrial (misalnya, karyawan mengklaim bahwa data kepegawaian atau penilaian kinerjanya diubah secara sepihak), PT. XYZ tidak memiliki bukti elektronik yang dapat diverifikasi secara independen. Sistem konvensional hanya dapat menunjukkan nilai data yang ada saat ini, tanpa dapat membuktikan nilai tersebut tidak pernah dimanipulasi. UU ITE dan UU PDP mensyaratkan bukti elektronik dengan integritas yang dapat diverifikasi.
+
+	•	Isolasi Data Profil Multi-Tenant 
+Model shared-table dengan isolasi logis berbasis company_id mengandung risiko cross-tenant data leakage apabila terjadi kesalahan query. Klien enterprise, khususnya di sektor perbankan, menuntut jaminan yang lebih kuat bahwa data profil karyawan mereka tidak dapat diakses oleh tenant lain, baik secara disengaja maupun tidak.
+
+	•	Hasil Perancangan Artefak
+Merespons tiga kelemahan tersebut, prototipe dirancang sebagai integrity assurance layer yang bekerja berdampingan dengan HRIS yang ada. Setiap kali section data profil karyawan dibuat atau diperbarui melalui aplikasi HRIS, hash SHA-256 dari section tersebut direkam di Hyperledger Fabric. Dokumen pendukung profil disimpan di IPFS dengan CID-nya tercatat on-chain.
+	•	Arsitektur Sistem (To-Be Architecture)
+
+Gambar 4.2. Arsitektur Sistem Integritas Data Profil (To-Be Architecture)
+
+	•	Topologi Jaringan Blockchain
+Sistem menggunakan topologi tiga organisasi. Org1 (PT. XYZ) berperan sebagai pengelola infrastruktur utama dengan 2 peer nodes (redundansi) dan 3 orderer nodes (konsensus Raft). Org2 (klien enterprise) memiliki 1 peer node yang menyimpan salinan ledger profil karyawan milik tenant tersebut, sehingga PT. XYZ tidak dapat memanipulasi hash profil tanpa terdeteksi. Org3 (auditor) memiliki 1 peer node read-only untuk verifikasi kepatuhan. Setiap tenant dipetakan ke channel terpisah (channel-per-tenant), sehingga record profil karyawan Tenant A secara kriptografis tidak dapat diakses oleh Tenant B.
+
+	•	Perancangan Chaincode: EmployeeProfileRecord
+Struktur data utama yang direkam di blockchain adalah EmployeeProfileRecord: bukan log aktivitas pengguna, melainkan sidik jari kriptografis dari data profil karyawan. Setiap section profil memiliki record terpisah di world state.
+// Struktur record integritas data profil karyawan type EmployeeProfileRecord struct {     RecordID       string `json:"recordID"`     // UUID v4 unik per event      EmployeeID     string `json:"employeeID"`     // SHA-256(internal_emp_id) — dipseudonymisasi, bukan NIK/nama asli      TenantID       string `json:"tenantID"`     // Dipetakan ke channel Fabric per tenant      ProfileSection string `json:"profileSection"`     // PERSONAL | EMPLOYMENT | EDUCATION | ADDITIONAL | PAYROLL      DataHash       string `json:"dataHash"`     // SHA-256(JSON kanonik section profil) — deteksi perubahan sekecil apapun      PrevHash       string `json:"prevHash"`     // Hash versi sebelumnya — hash chaining per section      Version        int    `json:"version"`     // Nomor versi incremental per section profil      UpdatedBy      string `json:"updatedBy"`     // SHA-256(user_id) — identitas aktor yang membuat perubahan      Timestamp      string `json:"timestamp"`     // ISO 8601 / Unix Epoch      IPFSCIDs       []string `json:"ipfsCIDs"`     // CID dokumen pendukung di IPFS (ijazah, SK, kontrak, slip gaji)     // kosong jika section tidak memiliki dokumen pendukung }
+Gambar 4.3. Definisi Struktur EmployeeProfileRecord (GoLang)
+Field ProfileSection membedakan lima section profil yang masing-masing memiliki siklus update independen: PERSONAL (jarang berubah), EMPLOYMENT (berubah saat promosi atau mutasi), EDUCATION (berubah saat karyawan menyelesaikan pendidikan baru), ADDITIONAL (berubah saat status perkawinan atau tanggungan berubah), dan PAYROLL (paling kritis: berubah saat ada penyesuaian gaji atau pergantian rekening bank).
+Chaincode memiliki empat fungsi utama:
+	•	RecordProfileSection: dipanggil setiap kali section profil dibuat atau diperbarui. Memvalidasi input, menghitung SHA-256 dari JSON kanonik section, mengambil PrevHash dari record terakhir section tersebut, menginkremen Version, dan menulis EmployeeProfileRecord baru ke world state.
+	•	VerifyProfileIntegrity: menerima data section profil saat ini dari klien, menghitung ulang SHA-256-nya, dan membandingkan dengan DataHash yang tersimpan di ledger. Mengembalikan {isValid, expectedHash, computedHash, version, timestamp}.
+	•	GetProfileHistory: menggunakan GetHistoryForKey Fabric API untuk mengambil seluruh riwayat versi suatu section profil karyawan secara kronologis.
+	•	GetEmployeeProfileSummary: mengembalikan hash dan versi terkini dari semua section profil seorang karyawan dalam satu panggilan, berguna untuk audit cepat.
+
+	•	Perancangan Layer Off-Chain: IPFS untuk Dokumen Profil 
+Setiap section profil dapat memiliki dokumen pendukung:
+Tabel 4.1. Dokumen Pendukung Profil per Section
+Section Profil
+Dokumen Pendukung di IPFS
+CID Disimpan di
+PERSONAL
+Foto KTP, foto profil karyawan, scan akte lahir
+EmployeeProfileRecord.IPFSCIDs (section PERSONAL)
+EMPLOYMENT
+Surat perjanjian kerja, SK pengangkatan, SK promosi
+EmployeeProfileRecord.IPFSCIDs (section EMPLOYMENT)
+EDUCATION
+Scan ijazah, transkrip nilai, sertifikat kompetensi
+EmployeeProfileRecord.IPFSCIDs (section EDUCATION)
+ADDITIONAL INFO
+Scan KTP pasangan/anak, kartu BPJS
+EmployeeProfileRecord.IPFSCIDs (section ADDITIONAL)
+PAYROLL
+Slip gaji, bukti potongan PPh21, kartu rekening bank
+EmployeeProfileRecord.IPFSCIDs (section PAYROLL)
+
+Setiap dokumen dienkripsi dengan kunci simetris unik per karyawan (KEY_EMPLOYEE) sebelum diunggah ke IPFS. Hanya CID yang tersimpan on-chain. Pendekatan ini mendukung crypto-shredding untuk pemenuhan Pasal 26 UU PDP: ketika karyawan meminta penghapusan data, KEY_EMPLOYEE dihancurkan sehingga semua dokumen di IPFS menjadi tidak dapat didekripsi, meskipun CID-nya masih tercatat di ledger.
+
+	•	Alur Kerja Integrasi Sistem
+
+Gambar 4.4. Alur Kerja Pencatatan Integritas Section PAYROLL
+
+Tabel 4.2. Strategi Penyimpanan Data Profil (3-Layer)
+Tipe Data
+Lokasi
+Karakteristik
+Alasan Desain
+Data profil relasional (5 section)
+PostgreSQL (AWS RDS)
+Cepat, queryable, mutable
+Kinerja operasional HRIS; flexible joins antar modul
+Dokumen pendukung profil (ijazah, SK, dll.)
+IPFS Private Cluster
+Terdistribusi, content-addressed, terenkripsi
+Efisiensi blockchain; mendukung crypto-shredding Pasal 26 UU PDP
+Hash profil per section + CID dokumen
+Hyperledger Fabric
+Immutable, append-only, multi-pihak
+Jaminan integritas kriptografis; pembuktian forensik
+
+	•	Hasil Evaluasi dan Pengujian
+	•	Benchmark Kinerja (Hyperledger Caliper v0.5)
+Pengujian dijalankan pada tiga instans Alicloud EC2 t3.xlarge (4 vCPU, 16 GB RAM) dengan state database LevelDB. Dua operasi diuji: RecordProfileSection (tulis: merekam hash section profil baru) dan VerifyProfileIntegrity (baca: memverifikasi integritas section profil).
+Tabel 4.3. Hasil Benchmark Kinerja
+Operasi
+Send Rate (TPS)
+Max Throughput (TPS)
+Avg Latency (s)
+Success Rate
+RecordProfileSection (Write)
+200
+198,5
+0,45
+100%
+RecordProfileSection (Write)
+500
+485,2
+1,12
+100%
+RecordProfileSection (Write)
+1.000
+850,4
+2,85
+99,8%
+RecordProfileSection (Write)
+2.000
+920,1
+6,40
+92,5%
+VerifyProfileIntegrity (Read)
+500
+499,8
+0,02
+100%
+VerifyProfileIntegrity (Read)
+2.000
+1.950,5
+0,15
+100%
+
+Operasi VerifyProfileIntegrity mencapai hampir 2.000 TPS dengan latensi 0,15 detik karena tidak memerlukan konsensus ordering; cukup mengambil record dari world state lokal peer. Artinya, verifikasi integritas profil dapat dilakukan secara real-time oleh karyawan, HR manager, atau auditor tanpa membebani jaringan.
+Saturasi tulis terjadi di sekitar 920 TPS. Dalam konteks operasional HRIS, pembaruan section profil karyawan (promosi, perubahan data penggajian, penambahan pendidikan) terjadi jauh di bawah ambang ini. Untuk operasi massal seperti penyesuaian gaji tahunan pada ribuan karyawan, mekanisme batching via message queue dapat diterapkan.
+
+	•	Pengujian Keamanan: Simulasi Manipulasi Data Profil
+Tabel 4.4. Hasil Pengujian Keamanan per Section Profil
+ID
+Section
+Skenario Manipulasi
+Mekanisme Deteksi
+Hasil
+SC-A
+PAYROLL
+DBA: UPDATE emp_payroll SET bank_account='xx' WHERE emp_id='123'
+VerifyProfileIntegrity('123','PAYROLL'): SHA256(data_baru)=0xC3D4 ≠ 0xA1B2 di blockchain
+HASH MISMATCH — deteksi instan. Versi valid terakhir (rekening asli) dapat direkonstruksi.
+SC-B
+PERSONAL
+DBA: UPDATE employees SET nik='pemalsuan' WHERE emp_id='456'
+VerifyProfileIntegrity('456','PERSONAL'): hash tidak cocok dengan record blockchain
+HASH MISMATCH — perubahan NIK terdeteksi.
+SC-C
+EMPLOYMENT
+DBA: UPDATE emp_employment SET grade='VIII' WHERE emp_id='789' (naik dari VI)
+VerifyProfileIntegrity('789','EMPLOYMENT'): hash grade VII tidak cocok
+HASH MISMATCH — manipulasi grade/jabatan terdeteksi.
+SC-D
+EDUCATION
+DBA: UPDATE emp_education SET degree='S2' WHERE emp_id='101' (dari S1)
+VerifyProfileIntegrity('101','EDUCATION'): DataHash tidak sesuai
+HASH MISMATCH — pemalsuan kualifikasi terdeteksi.
+SC-E
+ALL (channel isolation)
+Peer Tenant B mencoba query record profil karyawan Tenant A
+Channel membership enforced oleh MSP Fabric
+ACCESS DENIED — channel isolation kriptografis berfungsi.
+
+Semua skenario manipulasi terdeteksi, dengan tingkat deteksi 100%. Pada SC-A hingga SC-D, alasannya langsung: node Org2 (klien) dan Org3 (auditor) menyimpan salinan ledger secara independen, sehingga DBA tidak dapat memodifikasi catatan di blockchain tanpa kendali atas ketiga organisasi secara bersamaan. Pada SC-E, Fabric channel membership enforcement mencegah akses lintas-tenant pada level kriptografis, bukan sekadar logis.
+
+	•	Analisis Kepatuhan terhadap UU PDP
+Tabel 4.5. Matriks Kepatuhan Artefak terhadap UU PDP No. 27 Tahun 2022
+Pasal UU PDP
+Persyaratan Regulasi
+Mekanisme Pemenuhan pada Artefak
+Status
+Pasal 4 (2)
+Hak subjek data memperbarui dan memperbaiki data pribadi
+RecordProfileSection mencatat setiap pembaruan section profil; state aktif terkini tersimpan di world state; histori versi lama tersimpan sebagai bukti kronologis
+Comply
+Pasal 8
+Kewajiban menjaga kebenaran, keakuratan, dan konsistensi data pribadi
+Hash SHA-256 per section profil + konsensus multi-pihak menjamin konsistensi kriptografis; VerifyProfileIntegrity dapat membuktikan keaslian data kapan saja
+Comply
+Pasal 16 (2)
+Kewajiban melindungi data dari akses tidak sah
+Private Channel per tenant memberikan isolasi kriptografis data profil antartenant; dokumen IPFS dienkripsi dengan KEY_EMPLOYEE; MSP memverifikasi identitas setiap aktor
+Comply
+Pasal 26 (1)
+Hak penghapusan data pribadi (Right to be Forgotten)
+Crypto-Shredding: (1) field data profil di PostgreSQL dihapus; (2) KEY_EMPLOYEE dihancurkan sehingga dokumen IPFS tidak dapat didekripsi; (3) hash di Fabric menjadi orphan tidak identifiable
+Comply via Crypto-Shredding
+Pasal 43
+Larangan memproses data pribadi secara tidak sah
+Chaincode memvalidasi identitas aktor (MSP) sebelum merekam perubahan; setiap RecordProfileSection mencatat UpdatedBy yang terverifikasi dan tidak dapat dihapus
+Comply
+
+Pasal 8 tentang kewajiban menjaga kebenaran data mendapat pemenuhan teknis paling langsung dari prototipe ini: VerifyProfileIntegrity dapat dipanggil kapan saja oleh pihak yang berwenang untuk membuktikan secara matematis bahwa data profil karyawan saat ini identik dengan data yang terakhir dicatat secara sah di blockchain. Dengan demikian, kewajiban Pasal 8 bergeser dari jaminan administratif menjadi jaminan kriptografis yang dapat diverifikasi secara independen.
+
+	•	Evaluasi Kualitatif: Focus Group Discussion
+FGD melibatkan tiga ahli: VP Engineering PT. XYZ, legal compliance expert, dan security auditor. Sesi berlangsung 120 menit, dibuka dengan demonstrasi lima skenario pengujian.
+Tabel 4.6. Hasil Checklist Evaluasi FGD
+Kriteria Evaluasi
+VP Engineering
+Legal Expert
+Security Auditor
+Rata-rata
+Kelengkapan cakupan lima section profil karyawan
+5
+5
+5
+5,0
+Keandalan deteksi manipulasi hash per section
+5
+4
+5
+4,7
+Minimalisasi dampak pada kinerja aplikasi HRIS
+4
+4
+4
+4,0
+Kekuatan isolasi data profil antartenant
+5
+4
+5
+4,7
+Kelayakan implementasi pada skala produksi
+3
+4
+3
+3,3
+Kesesuaian mekanisme dengan kewajiban UU PDP Pasal 8
+4
+5
+4
+4,3
+Efektivitas crypto-shredding untuk Pasal 26
+4
+5
+4
+4,3
+
+Skor 5,0 untuk cakupan kelima section profil menunjukkan bahwa desain EmployeeProfileRecord memetakan seluruh domain data yang relevan. VP Engineering mencatat nilai komersial dari kemampuan ini: platform yang dapat membuktikan kepada klien bahwa data profil karyawan mereka (termasuk data penggajian) tidak pernah dimanipulasi sejak direkam memiliki keunggulan kompetitif pada segmen enterprise.
+Skor 3,3 untuk kelayakan skala produksi mencerminkan kekhawatiran yang perlu ditangani. Para ahli merekomendasikan model tiering: fitur integritas blockchain tersedia pada paket Enterprise, dengan biaya langganan yang mengakomodasi overhead infrastruktur node Fabric.
+
+	•	Pembahasan
+	•	Implikasi Teknis: Granularitas Hash per Section Profil
+Keputusan desain untuk merekam hash per section profil (bukan hash seluruh profil dalam satu record) didukung oleh hasil evaluasi. Granularitas ini memberi dua manfaat konkret: pertama, efisiensi — pembaruan section PAYROLL tidak memicu pencatatan ulang section EDUCATION yang tidak berubah; kedua, presisi forensik, auditor dapat mengidentifikasi dengan tepat section mana yang dimanipulasi tanpa memeriksa seluruh profil. Pada skenario dengan ribuan karyawan, pendekatan ini mengurangi beban on-chain dibandingkan hash profil monolitik.
+
+	•	Pergeseran dari Institutional Trust ke Code-Based Trust
+Implementasi ini menggeser basis kepercayaan klien dari reputasi vendor ke algoritma kriptografi. Klien tidak perlu lagi mengandalkan jaminan PT. XYZ bahwa data profil karyawan mereka tidak dimanipulasi, mereka dapat memverifikasinya sendiri secara matematis menggunakan VerifyProfileIntegrity. Dari sisi produk, kemampuan ini berpotensi menjadi pembeda yang relevan bagi klien di sektor yang diregulasi ketat seperti perbankan, asuransi, dan layanan keuangan.
+
+	•	Kontribusi Teoritis: DSRM + Compliance-by-Design
+Penelitian ini mengajukan model integrasi DSRM dengan Compliance-by-Design yang menunjukkan bahwa kewajiban menjaga kebenaran dan konsistensi data pribadi karyawan di bawah UU PDP Pasal 8 yang umumnya dipenuhi melalui kebijakan administratif dan prosedur audit manual dapat dipenuhi secara teknis dan otomatis melalui mekanisme hash chaining per section profil di blockchain. Ini memperluas pemahaman tentang bagaimana Compliance-by-Design dapat diwujudkan secara konkret dalam arsitektur sistem informasi.
+
+	•	Keterbatasan Penelitian
+Penelitian ini memiliki empat keterbatasan. Pertama, pengujian dilakukan pada skala simulasi, perilaku sistem dengan jutaan record profil historis dalam jangka panjang dan dampaknya terhadap pertumbuhan ledger belum diuji. Kedua, mekanisme key recovery untuk KEY_EMPLOYEE yang hilang belum dirancang, padahal ini kritis untuk kelangsungan operasional crypto-shredding. Ketiga, wawancara dan FGD berbasis simulasi, sehingga validitas eksternal temuan kualitatif perlu dikonfirmasi dalam studi lanjutan dengan partisipan dari industri. Keempat, analisis biaya-manfaat dari model tiering bisnis yang direkomendasikan belum dilakukan.
+
+
+
+BAB V  KESIMPULAN DAN SARAN
+	•	Kesimpulan
+Penelitian ini menjawab tiga pertanyaan penelitian menggunakan pendekatan Design Science Research.
+Terkait RQ1, analisis arsitektur sistem PT. XYZ mengidentifikasi tiga kelemahan: ketiadaan mekanisme kriptografis yang dapat membuktikan integritas data kelima section profil karyawan (personal, kepegawaian, pendidikan, tambahan, penggajian); keterbatasan pembuktian forensik karena sistem hanya menyimpan nilai field saat ini tanpa bukti bahwa nilai tersebut belum pernah dimanipulasi; dan risiko kebocoran data profil lintas-tenant pada model isolasi berbasis company_id.
+Terkait RQ2, prototipe dirancang dan diimplementasikan. Chaincode EmployeeProfileRecord merekam hash SHA-256 per section profil ke Hyperledger Fabric v2.5 setiap kali section dibuat atau diperbarui. Dokumen pendukung profil disimpan di IPFS Private Cluster dengan CID-nya tercatat on-chain. Model channel-per-tenant memberikan isolasi kriptografis data profil antartenant yang lebih kuat dari model shared-table yang ada.
+Terkait RQ3, evaluasi menghasilkan: throughput tulis 850,4 TPS (latensi 2,85 detik pada beban 1.000 TPS) dan throughput baca 1.950,5 TPS (latensi 0,15 detik), keduanya berada dalam batas operasional HRIS; deteksi 100% kasus manipulasi data profil pada kelima section melalui hash mismatch; dan pemenuhan lima pasal UU PDP No. 27 Tahun 2022, termasuk Pasal 8 (kebenaran data) dan Pasal 26 (hak penghapusan) melalui crypto-shredding.
+Secara teoritis, penelitian ini mengajukan model integrasi DSRM dengan Compliance-by-Design yang menunjukkan bahwa kewajiban regulasi UU PDP dapat dipenuhi secara teknis dan otomatis melalui desain arsitektur, bukan hanya melalui kebijakan administratif.
+	•	Saran
+	•	Saran untuk Penelitian Lanjutan
+	•	Pengujian skala produksi: menguji sistem dengan dataset jutaan record profil historis untuk mengukur pertumbuhan ledger dan dampaknya pada latensi query jangka panjang.
+	•	Mekanisme key recovery: merancang protokol pemulihan KEY_EMPLOYEE yang aman, termasuk integrasi dengan Hardware Security Module (HSM) atau solusi key management enterprise.
+	•	Validasi dengan data primer: mereplikasi penelitian dengan partisipan dari industri SaaS HRIS Indonesia untuk menguji validitas eksternal temuan.
+	•	Zero-Knowledge Proof untuk verifikasi privat: menguji penerapan ZKP sehingga auditor dapat memverifikasi bahwa data gaji berada dalam rentang yang sah tanpa melihat nilai aktualnya.
+	•	Saran untuk Praktisi
+	•	Penyedia SaaS HRIS disarankan mengadopsi model tiering: fitur integritas blockchain tersedia pada paket Enterprise untuk klien yang membutuhkan auditabilitas data profil karyawan yang dapat diverifikasi secara independen.
+	•	Program edukasi klien perlu menjelaskan bahwa yang tersimpan on-chain adalah hash kriptografis dari data profil, bukan data profil itu sendiri, sehingga privasi karyawan tetap terjaga.
+	•	Regulator Indonesia disarankan mengembangkan panduan teknis tentang penggunaan hash chaining dan crypto-shredding sebagai mekanisme pemenuhan Pasal 8 dan Pasal 26 UU PDP, mengikuti preseden ENISA guidelines dalam konteks GDPR.
+
+
+DAFTAR PUSTAKA
+
+Wujarso, R., Saprudin, S., & Dameria, R. (2023). Human capital management as a resource in achieving competitive advantage. BIRCI Journal: Humanities and Social Sciences, 4(2), 1123–1133. https://doi.org/10.33258/birci.v4i2.2023
+Soliman, M., & Karia, N. (2021). Role of resource-based view in predicting ERP perceived value: Higher education perceptions. Journal of Technology Management and Business, 8(1), 12–25. https://publisher.uthm.edu.my/ojs/index.php/jtmb/article/view/7491
+Aguilar-Fernández, M., Salgado-Escobar, G., & Barragán-Hernández, A. D. (2024). Human resource management in complex environments: A viable model based on systems thinking. Systems, 12(11), 489. https://doi.org/10.3390/systems12110489
+Tilo, D. (2025, Jul 24). HR data found in 82% of data breaches, analysis reveals. HRD Asia. https://www.hcamag.com/asia/news/general/hr-data-found-in-82-of-data-breaches-analysis-reveals/543662
+StringerAI. (2025, Jan 27). Obsidian Security reports 300% increase in SaaS breaches for 2025. SDxCentral. https://www.sdxcentral.com/news/obsidian-security-reports-300-increase-in-saas-breaches-for-2025/
+Market Biz. (2025, Aug 26) Workplace Data Privacy Statistics and Facts: Costs of workplace data breaches. https://market.biz/workplace-data-privacy-statistics/#costs-of-workplace-data-breaches
+Adhiatma, A. (2022). Blockchain-based human resources management practices to support performance efficiency: A literature survey. Human Resources Management and Services, 4(1). https://doi.org/10.18282/hrms.v4i1.3473
+Adhiatma, F. (2022). Blockchain adoption for digital human resource systems: A conceptual review. Journal of Digital Business and Innovation, 5(3), 155–170.
+Ahmad, A., Obeidat, B. Y., & Tarhini, A. (2023). Human resource information systems and organizational performance in the digital era. Sustainability, 15(1), 499. https://doi.org/10.3390/su15010499
+Alharti, M., Masadeh, R., & Obeidat, B. (2022). Human capital and organizational innovation in digital transformation. Journal of Open Innovation: Technology, Market, and Complexity, 8(3), 120. https://doi.org/10.3390/joitmc8030120
+Alhassan, I., Mensah, P., & Boateng, R. (2024). Zero trust architecture for secure cloud-based HR systems. IEEE Access, 12, 55612–55629.
+Androulaki, E., Barger, A., Bortnikov, V., Cachin, C., Christidis, K., & Yellick, J. (2018). Hyperledger Fabric: A distributed operating system for permissioned blockchains. Proceedings of EuroSys ’18, 1–15.
+Apostolou, D., Mentzas, G., & Stojanovic, L. (2021). Blockchain-enabled HR systems for secure and transparent employee data management. Computers in Industry, 132, 103523.
+Cavoukian, A. (2021). Privacy by design: Origins, meaning, and prospects. Computer Law & Security Review, 41, 105562.
+Chen, C.-L., Yang, J., Tsaur, W.-J., Weng, W., Wu, C.-M., & Wei, X. (2022). Enterprise data sharing with privacy-preserved based on Hyperledger Fabric blockchain in IIoT applications. Sensors, 22(3), 1146. https://doi.org/10.3390/s22031146
+Darodjat, D., & Arapah, E. (2024). Blockchain for trustworthy HR data management in Indonesia: A design science perspective. Indonesian Journal of Information Systems, 9(1), 22–39.
+Dumay, J., & Guthrie, J. (2022). Human capital theory: A review and future directions. Journal of Intellectual Capital, 23(6), 1128–1146.
+Gao, W., Hei, X., & Wang, Y. (2023). The data privacy protection method for Hyperledger Fabric based on Trustzone. Mathematics, 11(6), 1357. https://doi.org/10.3390/math11061357
+Gregor, S., & Hevner, A. (2023). Positioning and presenting design science research for maximum impact. MIS Quarterly, 47(1), 95–122.
+Gstrein, O. J., & Risius, M. (2023). The promise and limits of blockchain for data privacy and regulation. Computer Law & Security Review, 49, 105847.
+Hashem, I. A. T., Yaqoob, I., & Gani, A. (2023). Blockchain, GDPR, and the right to be forgotten: A technical analysis. Journal of Network and Computer Applications, 220, 103633.
+Hevner, A., & Chatterjee, S. (2023). Design science research in information systems: Foundations and frameworks. Springer.
+Honar Pajooh, H., Rashid, M., Alam, F., & Demidenko, S. (2021). Hyperledger Fabric blockchain for securing the edge Internet of Things. Sensors, 21(2), 359. https://doi.org/10.3390/s21020359
+Islam, N., Uddin, M., & Hasan, R. (2022). Cloud-based human resource information system for digital transformation. IEEE Access, 10, 120304–120318.
+Javed, S., Irfan, M., & Yusoff, R. (2022). Privacy and security concerns in SaaS-based HRIS: A multi-tenant architecture review. Journal of Information Security and Applications, 69, 103218.
+Khan, F., Alshammari, M., & Hussain, S. (2024). Blockchain-enabled privacy-by-design framework for secure HR data management. IEEE Transactions on Information Forensics and Security, 19, 1451–1463.
+Kryscynski, D., & Ulrich, D. (2022). Digital HR transformation: From efficiency to experience. Human Resource Management Review, 32(3), 100823.
+Kumutha, K., Jayalakshmi, S., & SriPriya, P. (2022). Data security mechanism of Hyperledger Fabric and its application in academic documents verification system. International Journal of Health Sciences, 6(S3), 4394–4403.
+Lee, H., Park, S., & Kim, J. (2023). Digital transformation and human resource management in post-pandemic organizations. Journal of Information Systems Research, 34(1), 22–36.
+Liu, Y., Zhang, C., & Wang, J. (2024). Permissioned blockchain frameworks for regulatory compliance in human resource management systems. IEEE Access, 12, 55645–55661.
+Margherita, A., & Braccini, A. M. (2022). Digital transformation in human resource management: A socio-technical perspective. Computers in Human Behavior Reports, 7, 100220.
+McCusker, K., & Gunaydin, S. (2015). Research using qualitative, quantitative, or mixed methods and choice based on the research. Perfusion, 30(7), 537–542.
+Mollah, M. B., Zhao, J., & Niyato, D. (2022). Blockchain for data security and privacy: A comprehensive survey. IEEE Communications Surveys & Tutorials, 24(4), 2409–2452.
+Nguyen, T. H., Chen, C. Y., & Zhang, H. (2024). Blockchain-driven human resource management systems: Enhancing trust and data governance. Journal of Enterprise Information Management, 37(2), 347–369.
+Núñez-Sánchez, A., Calvo-Mora, A., & Leal-Rodríguez, A. (2022). Socio-technical perspectives in human resource information systems: A review and future directions. Sustainability, 14(5), 2764.
+Patel, D., Saini, A., & Gupta, R. (2023). Reinforcing confidentiality, integrity, and availability in cloud environments. Journal of Information Security and Applications, 73, 103520.
+Peffers, K., Tuunanen, T., Rothenberger, M. A., & Chatterjee, S. (2007). A design science research methodology for information systems research. Journal of Management Information Systems, 24(3), 45–77. https://doi.org/10.2753/MIS0742-1222240302
+Peffers, K., Tuunanen, T., Rothenberger, M. A., & Chatterjee, S. (2022). A design science research methodology for information systems research revisited. Journal of Information Systems Theory and Practice, 44(2), 105–130.
+Rahman, M. A., Saha, R., & Islam, M. (2024). Implementing blockchain-based HR data management systems using Hyperledger Fabric. Future Internet, 16(4), 125.
+Rani, S., Singh, A., & Sharma, R. (2022). Modern interpretation of the CIA triad for cloud-based HR systems. Information Systems Frontiers, 24(6), 1621–1636.
+Sharma, R., Gupta, V., & Singh, P. (2024). Merkle tree optimization for enterprise blockchain scalability. Journal of Information Security and Applications, 78, 103609.
+Singh, P., & Kumar, V. (2024). Secure employee data management through hybrid blockchain architectures in HRIS. Journal of Information Security and Applications, 77, 103603.
+Tawalbeh, L., Muheidat, F., & Tawalbeh, M. (2022). Security and privacy by design for SaaS HR systems. Computers & Security, 116, 102747.
+Tursunbayeva, A., Pagliari, C., & Di Lauro, S. (2023). Digital HR ecosystems: Governance, privacy, and ethical challenges. Information & Management, 60(3), 103656.
+Urbancová, H., & Hudáková, M. (2023). Strategic human capital management in the era of digitalization. Sustainability, 15(4), 3459. https://doi.org/10.3390/su15043459
+Vom Brocke, J., Winter, R., & Hevner, A. (2022). Bridging the rigor–relevance gap in design science research. Business & Information Systems Engineering, 64(5), 561–574.
+Xu, M., Li, Y., & Jiang, J. (2023). The architecture and applications of enterprise blockchain: A technical survey. ACM Computing Surveys, 55(9), 197.
+Zhou, L., Yang, Q., & Li, H. (2023). Security-by-design in cloud and blockchain-based enterprise systems. Future Generation Computer Systems, 145, 210–224.
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		
+		
+
+
+		
+		
+		
+		
+		
+		
+		
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+
+
+		
+		
+		
+		
+		
+		
+
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+
