@@ -1,0 +1,71 @@
+%% Fabric network topology — three-org consortium (ADR-0012), channel-per-tenant (ADR-0013),
+%% LevelDB (ADR-0007), AND(Org1, OrgClient-<tenantID>) endorsement per tenant channel.
+%% Redrawn from zero 2026-08-06 — the prior two-org / single-channel / PDC diagram is retired,
+%% not patched: every element of that diagram (org count, channel count, PDC) has changed.
+%% Org3 (auditor) is read-only and does not endorse. IPFS private cluster (ADR-0016) is shown
+%% as an off-chain pointer only — it is not a Fabric org, peer, or channel member.
+graph TB
+  subgraph Org1["Org1 &middot; platform provider &middot; Org1MSP"]
+    P1a["peer0.org1<br/>endorse+commit &middot; LevelDB"]
+    P1b["peer1.org1<br/>endorse+commit &middot; LevelDB"]
+    O1["orderer0.org1"]
+    O2["orderer1.org1"]
+    O3["orderer2.org1<br/>etcdraft &middot; quorum 2-of-3"]
+    CA1["ca.org1 (Fabric CA)"]
+  end
+
+  subgraph OrgA["OrgClient-A &middot; enterprise client (tenant A) &middot; client-operated"]
+    PA["peer0.tenantA<br/>endorse+commit &middot; LevelDB<br/>independent ledger replica"]
+    CAA["ca.tenantA (Fabric CA)"]
+  end
+
+  subgraph OrgB["OrgClient-B &middot; enterprise client (tenant B) &middot; client-operated"]
+    PB["peer0.tenantB<br/>endorse+commit &middot; LevelDB<br/>independent ledger replica"]
+    CAB["ca.tenantB (Fabric CA)"]
+  end
+
+  subgraph Org3["Org3 &middot; auditor &middot; Org3MSP"]
+    P3["peer0.org3<br/>commit only &middot; read-only, no endorsement &middot; LevelDB"]
+    CA3["ca.org3 (Fabric CA)"]
+  end
+
+  CHA{{"channel tenant-A &middot; capability V2_5"}}
+  CCA["chaincode (per-tenant deployment)<br/>endorsement AND(Org1MSP.peer, OrgClient-A MSP.peer)"]
+  CHB{{"channel tenant-B &middot; capability V2_5"}}
+  CCB["chaincode (per-tenant deployment)<br/>endorsement AND(Org1MSP.peer, OrgClient-B MSP.peer)"]
+
+  P1a --- CHA
+  P1b --- CHA
+  PA --- CHA
+  P3 -. "member by default &mdash; ASSUMPTION, scope TBD per audit engagement" .-> CHA
+  O1 --- CHA
+  O2 --- CHA
+  O3 --- CHA
+  CHA --- CCA
+
+  P1a --- CHB
+  P1b --- CHB
+  PB --- CHB
+  P3 -. "member by default &mdash; ASSUMPTION" .-> CHB
+  O1 --- CHB
+  O2 --- CHB
+  O3 --- CHB
+  CHB --- CCB
+
+  CA1 -. enrolls .-> P1a
+  CA1 -. enrolls .-> P1b
+  CAA -. enrolls .-> PA
+  CAB -. enrolls .-> PB
+  CA3 -. enrolls .-> P3
+
+  IPFS[["IPFS private cluster<br/>swarm-key gated &middot; 4th trust boundary<br/>off-chain &mdash; not a Fabric org/peer/channel member (ADR-0016)"]]
+  CCA -. "CID reference only &mdash; 0 bytes of document content on-chain" .-> IPFS
+  CCB -. "CID reference only &mdash; 0 bytes of document content on-chain" .-> IPFS
+
+  %% Residual risk (ADR-0012 Consequences): all 3 Raft consenters are Org1-operated and are the
+  %% SAME 3 nodes shared across every tenant channel (ordering is provisioned once, not per
+  %% tenant). An Org1-only outage, or a unilateral Org1 action, halts ordering on every channel
+  %% simultaneously. This does NOT let Org1 forge an endorsement it does not hold — the AND
+  %% policy still requires a signature from the tenant's own client-org peer for every write.
+  %% Confidentiality invariant (INV-1/FR-31): 0 bytes of PII plaintext, and 0 bytes of document
+  %% content, ever cross to the ledger &mdash; only digests, non-PII metadata, and CIDs do.

@@ -1,0 +1,41 @@
+%% Agent-suite hierarchy — 1 orchestrator Workflow dispatching a FLAT roster of 12 agents.
+%% Subagents are one level deep in Claude Code, so there is no nested org tree.
+graph TD
+  H(["👤 Human — sole approver at G9"])
+  O["hlf-orchestrator<br/><i>top-thread Workflow</i><br/>(the only actor that calls the Task tool)"]
+  H -. "authorizes / approves (G9)" .-> O
+
+  subgraph REUSED["Reused agents (8)"]
+    direction LR
+    ARCH["architect"]
+    BE["backend-engineer<br/><small>Go + PHP</small>"]
+    REV["reviewer"]
+    QA["qa"]
+    SRE["sre"]
+    PM["pm"]
+    CR["code-reviewer*"]
+    CS["code-simplifier*"]
+  end
+
+  subgraph NEW["New thin specializations (4)"]
+    direction LR
+    FA["fabric-architect"]
+    FE["fabric-engineer"]
+    SA["security-architect"]
+    DR["dsrm-researcher"]
+  end
+
+  O ==> REUSED
+  O ==> NEW
+
+  O -. "dispatch (Task)" .-> PM & DR & FA & FE & SA & ARCH & BE & REV & QA & SRE
+  PM -. "structured report (disk artifact)" .-> O
+
+  classDef wf fill:#1f3a5f,stroke:#4a90d9,color:#fff;
+  classDef human fill:#5f4b1f,stroke:#d9a94a,color:#fff;
+  class O wf;
+  class H human;
+
+  %% * code-reviewer / code-simplifier are Claude Code BUILT-IN subagent types,
+  %% not files under ~/.claude/agents/ (the other 6 reused agents are files there).
+  %% Agents are leaves: none of them dispatches another agent.

@@ -1,0 +1,43 @@
+%% Review + approval loop — the author->critic adversarial pattern that wraps EVERY gate,
+%% plus the single human approval gate at G9. This is the "anatomy of one gate".
+%% Source of truth: agent-suite/00-architecture/orchestration-and-collaboration.md
+sequenceDiagram
+  autonumber
+  participant O as hlf-orchestrator<br/>(top thread)
+  participant A as Author agent<br/>(e.g. fabric-architect)
+  participant C as Critic agent<br/>(reviewer / code-reviewer /<br/>security-architect)
+  participant V as Blocking verify<br/>(deterministic, in top thread)
+  participant H as Human approver
+
+  Note over O,V: Design phases G0-G8 — no prototype code
+  O->>A: dispatch(task, matrix-scoped context docs only)
+  A->>A: author deliverable (cite [docs:]/[code:]/[brief:]; tag [ASSUMPTION] G-##)
+  A-->>O: return deliverable + file paths
+
+  O->>C: dispatch adversarial review of the deliverable
+  C->>C: challenge — citations resolve? duplication? [VERIFY] leaks? gap-tracked?
+  C-->>O: findings (severity-ranked)
+
+  alt findings block the gate
+    O->>A: re-dispatch with findings (author revises)
+    A-->>O: revised deliverable
+    Note over O,A: bounded retries; author overwrites own output (idempotent)
+  end
+
+  O->>V: run blocking verification
+  V->>V: files exist? tool-calls > 0? citations resolve?<br/>0 unresolved [VERIFY]? assumptions -> gaps?
+  alt verify FAIL
+    V-->>O: FAIL (see failure-recovery.mmd)
+    O->>A: re-dispatch / loop-back to owning gate
+  else verify OK
+    V-->>O: PASS -> advance gate
+  end
+
+  Note over O,H: Only at G9 (DSRM 6 · Communication)
+  O->>H: present full package for approval
+  alt human requests changes
+    H-->>O: change requests
+    O->>A: re-open the owning gate(s)
+  else human approves
+    H-->>O: APPROVED — unlock DSRM 4 Demonstration (prototype build)
+  end

@@ -1,0 +1,31 @@
+%% Context-sharing: the knowledge-graph is the shared spine; the access matrix scopes
+%% what each dispatched agent receives; agents communicate stigmergically via disk artifacts.
+graph LR
+  KG["knowledge-graph.md<br/>shared spine (Layers A-F)"]
+  GAPS["grounding-gaps.md<br/>G-01..G-22"]
+  CTX["context/*.md<br/>35 knowledge docs"]
+  AM["context/README.md<br/>agent to context access matrix"]
+
+  KG --> AM
+  CTX --> AM
+  GAPS -. "assumptions" .-> KG
+
+  O["hlf-orchestrator<br/>(top-thread Workflow)"]
+  AM -->|"defines primary/secondary docs per role"| O
+
+  subgraph DISPATCH["one dispatched agent"]
+    A["agent (e.g. security-architect)"]
+  end
+
+  O ==>|"hands ONLY the role's primary docs + task"| A
+  A ==>|"returns a structured report = a new disk artifact"| O
+  A -. "may request a secondary doc on demand" .-> O
+
+  ART["package artifacts on disk<br/>(specs, ADRs, matrices, verify logs)"]
+  A -->|"writes"| ART
+  ART -->|"next agent reads"| O
+
+  classDef spine fill:#1f3a5f,stroke:#4a90d9,color:#fff;
+  class KG,AM spine;
+  %% No agent-to-agent channel exists: all coordination flows through the orchestrator
+  %% and through durable artifacts (stigmergy), never shared mutable runtime state.

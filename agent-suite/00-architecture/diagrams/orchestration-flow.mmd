@@ -1,0 +1,56 @@
+%% Orchestration flow — the hlf-orchestrator Workflow as a pipeline of phase-gates (G0-G9),
+%% each transition passing through a BLOCKING verification, mapped to the six DSRM activities.
+%% Source of truth: agent-suite/00-architecture/orchestration-and-collaboration.md
+%% NOTE: the "Engineering Orchestrator" is a TOP-THREAD WORKFLOW, not a runtime subagent
+%% (Claude Code subagents are one level deep and cannot spawn subagents).
+flowchart TB
+  classDef gate  fill:#eef,stroke:#557,color:#000;
+  classDef human fill:#e6ffed,stroke:#2da44e,color:#000;
+  classDef wf    fill:#f0e6ff,stroke:#8250df,color:#000;
+  classDef demo  fill:#f5f5f5,stroke:#999,stroke-dasharray:4 3,color:#000;
+
+  ORCH["<b>hlf-orchestrator Workflow</b><br/>top thread — dispatches subagents (Task),<br/>runs the blocking verify, advances the gate.<br/><i>Not a subagent: one level deep only.</i>"]:::wf
+
+  subgraph P1["DSRM 1 · Problem identification"]
+    G0["<b>G0</b> Grounding &amp; discovery<br/>owner: pm + dsrm-researcher"]:::gate
+  end
+  subgraph P2["DSRM 2 · Objectives of a solution"]
+    G1["<b>G1</b> Context knowledge base<br/>authors: all (matrix-scoped) · critic: reviewer"]:::gate
+  end
+  subgraph P3["DSRM 3 · Design &amp; development  (no prototype code)"]
+    G2["<b>G2</b> New skills<br/>dsrm-researcher · security-architect"]:::gate
+    G3["<b>G3</b> Architecture + agent specs + agents<br/>architect · fabric-architect"]:::gate
+    G4["<b>G4</b> ADRs<br/>architect (+ fabric-architect / security-architect)"]:::gate
+    G5["<b>G5</b> Solution design<br/>fabric-architect · fabric-engineer · backend-engineer"]:::gate
+    G6["<b>G6</b> Security architecture<br/>security-architect"]:::gate
+    G7["<b>G7</b> Tasks + test strategy<br/>qa · pm"]:::gate
+  end
+  subgraph P5["DSRM 5 · Evaluation"]
+    G8["<b>G8</b> Full-package review + security testing<br/>reviewer · code-reviewer · qa · security-architect"]:::gate
+  end
+  subgraph P6["DSRM 6 · Communication"]
+    G9["<b>G9</b> Roadmap · risk · MCP · repo · README<br/><b>+ HUMAN APPROVAL</b><br/>owner: pm"]:::human
+  end
+  subgraph P4["DSRM 4 · Demonstration (post-approval)"]
+    DEMO["Prototype build &amp; pilot exercise<br/>fabric-engineer · backend-engineer · sre<br/><i>first application code allowed here</i>"]:::demo
+  end
+
+  ORCH ==>|kickoff| G0
+
+  G0 -->|verify OK| G1
+  G1 -->|verify OK| G2
+  G2 -->|verify OK| G3
+  G3 -->|verify OK| G4
+  G4 -->|verify OK| G5
+  G5 -->|verify OK| G6
+  G6 -->|verify OK| G7
+  G7 -->|verify OK| G8
+  G8 -->|verify OK| G9
+  G9 -->|human approves| DEMO
+
+  %% loop-backs (verify or critic FAIL -> re-open the owning gate)
+  G8 -.->|findings / verify FAIL| G3
+  DEMO -.->|pilot evidence re-enters Evaluation| G8
+
+  %% requirement-blocking gaps escalate out of the pipeline
+  G0 -.->|open gaps G-01..G-22| ASSUME["proceed-with-assumptions<br/>(every requirement-specific tagged [ASSUMPTION])"]:::demo

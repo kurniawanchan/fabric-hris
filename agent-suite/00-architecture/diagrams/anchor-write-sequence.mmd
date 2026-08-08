@@ -1,0 +1,58 @@
+%% anchor-write-sequence — how ONE profile-section write becomes a co-signed EmployeeProfileRecord.
+%% Redrawn from scratch (post-reconciliation). Instantiates ADR-0011 (per-section salted digest,
+%% two-tier keyed identifiers), ADR-0014 (in-band recording — no Kafka, no anchor-service),
+%% ADR-0020 (chaincode contract + off-chain hashing boundary). Grounds in
+%% agent-suite/00-architecture/solution/integration-design.md §4 and data-model.md §2/§4/§5.
+%% Confidentiality invariant: 0 bytes of section plaintext or salt ever cross to the ledger,
+%% on Submit or on Evaluate.
+%% Register note: no product name, codebase, file, class, or table name appears here — see
+%% project-context.md AUTHORITY NOTICE.
+sequenceDiagram
+    autonumber
+    actor HR as HR admin / employee
+    participant WP as HRIS write path<br/>(one of 5 profile-section paths)
+    participant DB as Operational database<br/>(system-of-record, at rest encrypted)
+    participant DOC as Doc-encrypt + IPFS<br/>(only if a document is attached)
+    participant OFF as Off-chain stores<br/>salt + pseudonymKey/employeeKey_i
+    participant GW as Fabric Gateway client<br/>(host: OPEN — ADR-0014 / G-10)
+    participant P1 as Platform org peer
+    participant P2 as Enterprise-client org peer
+    participant ORD as Orderer / ledger<br/>(employee's tenant channel)
+
+    HR->>WP: submit / approve a profile-section change
+    WP->>DB: commit the section (system-of-record write) — UNCHANGED by this design
+    Note over WP,DB: This design adds NOTHING to the section commit itself (ADR-0002 posture retained).
+
+    opt a supporting document accompanies this change
+        WP->>DOC: encrypt with the employee's own document key, pin to IPFS
+        DOC-->>WP: CID(s)
+    end
+
+    WP->>WP: JCS-canonicalize the CURRENT, COMPLETE section value (not a delta)
+    WP->>OFF: resolve employeeKey_i for this employee (ADR-0011 — never pseudonymKey directly)
+    WP->>OFF: salt = CSPRNG(>=128 bits) — NEW, unique to this record
+    WP->>WP: dataHash = SHA-256(salt || JCS(section))
+    WP->>WP: employeeID/updatedBy = HMAC-SHA256(employeeKey_i, ...)
+    WP->>OFF: persist {salt, dataHash} OFF-CHAIN, before the ledger call (retry-safe)
+    WP->>P1: read current head for (employeeID, profileSection) -> prevHash
+
+    Note over WP,ORD: CONFIDENTIALITY BOUNDARY (ADR-0020). Proposal args carry ONLY employeeID,<br/>profileSection, dataHash, prevHash, updatedBy, ipfsCIDs, canonicalizationVersion, hashAlgo.<br/>0 bytes of section plaintext. 0 bytes of salt. On Submit AND on every Evaluate call.
+    WP->>GW: SubmitTransaction("RecordProfileSection", employeeID, profileSection,<br/>dataHash, prevHash, updatedBy, ipfsCIDs, canonicalizationVersion, hashAlgo)
+    GW->>P1: simulate; verify caller identity via CID (FR-6)
+    P1->>P1: dataHash == current head's dataHash ? -> NO-OP, return existing record (FR-9)
+    P1->>P1: else prevHash == current head's dataHash (or head absent) ? else REJECT (stale chain ref)
+    GW->>P2: gather co-signature — policy AND(platform org, enterprise-client org)
+    P2-->>GW: endorsement (auditor org NOT in the write-endorsement set — read-only role, FR-23)
+    GW->>ORD: submit endorsed envelope -> order -> commit on the tenant channel
+    ORD-->>WP: CommitStatus (VALID | MVCC_READ_CONFLICT | ...)
+
+    alt VALID
+        WP-->>HR: change confirmed — section write AND anchor both committed
+    else MVCC_READ_CONFLICT (a concurrent write raced this one for the SAME employee+section)
+        Note over WP,ORD: EXPECTED outcome under the overwrite-the-head key strategy (data-model.md §5.2),<br/>not a defect. Re-read the (now different) head -> new prevHash -> resubmit.
+        WP->>P1: re-read head; retry from step "read current head"
+    else endorsement unmet / gateway / orderer unreachable
+        Note over WP,ORD: OPEN QUESTION (ADR-0014 follow-up, gap G-10): block, bounded-retry, or<br/>degrade-and-queue? NOT decided by this design — owner: architect / backend-engineer.
+    end
+
+    Note over OFF,ORD: ERASURE (cross-ref, pending ADR-0015): destroy this employee's salt(s) +<br/>employeeKey_i OFF-CHAIN only. NO on-chain transaction, NO ledger rewrite. Surviving<br/>DataHash values become un-openable orphans — the ledger is never touched by erasure.

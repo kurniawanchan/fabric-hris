@@ -1,0 +1,31 @@
+%% Failure recovery + retry — how the blocking verify classifies a failed dispatch and routes it
+%% back into the pipeline. Grounded in REAL incidents this build hit (the G1 context-stub /
+%% context-index / skill-catalog agents returned 0-tool-call preambles, caught by verify).
+%% Source of truth: agent-suite/00-architecture/orchestration-and-collaboration.md
+flowchart TB
+  classDef ok    fill:#e6ffed,stroke:#2da44e,color:#000;
+  classDef bad   fill:#ffe6e6,stroke:#cf222e,color:#000;
+  classDef act   fill:#eef,stroke:#557,color:#000;
+  classDef esc   fill:#fff3cd,stroke:#b8860b,color:#000;
+
+  D["Orchestrator dispatches subagent<br/>(Task, matrix-scoped context)"]:::act
+  R["Subagent returns"]:::act
+  V{"Blocking verify<br/>(top thread)"}:::act
+  D --> R --> V
+
+  V -->|"files exist · tool-calls &gt; 0 ·<br/>citations resolve · 0 [VERIFY]"| PASS["PASS -> advance gate"]:::ok
+
+  V -->|"0 tool calls · no files written<br/>(preamble-only no-op)"| NOOP["<b>No-op failure</b><br/>REAL: G1 context-stub,<br/>context-index &amp; skill-catalog<br/>agents each returned a<br/>&quot;I will now create...&quot; preamble<br/>with zero Write calls"]:::bad
+  V -->|"files exist but critic rejects,<br/>citation broken, [VERIFY] leak,<br/>duplication, gap untracked"| QUAL["<b>Quality failure</b>"]:::bad
+  V -->|"deliverable needs a fact only<br/>HLF-6 / Confluence can give"| REQ["<b>Requirement-blocking gap</b><br/>G-01..G-22"]:::bad
+
+  NOOP --> SHARP["Re-dispatch with sharpened prompt:<br/>imperative 'You MUST call Write';<br/>'return only after files exist';<br/>enumerate exact target paths"]:::act
+  QUAL --> LOOP["Loop back to owning gate;<br/>author revises against findings<br/>(idempotent — overwrites own output)"]:::act
+
+  SHARP --> CNT{"retry &lt; N ?"}:::act
+  LOOP  --> CNT
+  CNT -->|yes| D
+  CNT -->|no| ESC
+
+  REQ --> ESC["<b>Escalate to human</b><br/>proceed-with-assumptions (default):<br/>tag [ASSUMPTION], log gap, continue;<br/>or BLOCK if human chose strict mode"]:::esc
+  ESC -->|assumption logged / decision made| D

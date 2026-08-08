@@ -1,0 +1,67 @@
+%% integration-flow — system-level view of the whole seam: write, verify, and erasure in one
+%% picture. Redrawn from scratch (post-reconciliation); complements the detailed sequence in
+%% anchor-write-sequence.mmd. Instantiates ADR-0011, ADR-0014, ADR-0020.
+%% Source of truth: agent-suite/00-architecture/solution/integration-design.md (all sections).
+%% Register note: no product name, codebase, file, class, or table name appears here — see
+%% project-context.md AUTHORITY NOTICE.
+flowchart TB
+    HR(["HR admin / employee"])
+    EMP(["Enterprise-client auditor"])
+    AUD(["Platform auditor org"])
+
+    subgraph WRITE["Write path — in-band, one of 5 profile-section paths (ADR-0014)"]
+        direction TB
+        WP["HRIS write path<br/>(PERSONAL / EMPLOYMENT / EDUCATION /<br/>ADDITIONAL / PAYROLL)"]
+        DB[("Operational database<br/>system-of-record, at rest encrypted")]
+        DOCENC["Document encrypt<br/>(employee's own document key)"]
+        IPFS[("IPFS private cluster")]
+        OFFSTORE[("Off-chain stores<br/>salt + pseudonymKey / employeeKey_i")]
+        WP -- "commit section" --> DB
+        WP -. "if a document is attached" .-> DOCENC
+        DOCENC --> IPFS
+        IPFS -. "CID" .-> WP
+        WP -- "salt, employeeKey_i" --> OFFSTORE
+        WP -- "JCS canonicalize + SHA-256(salt‖JCS) off-chain" --> WP
+    end
+
+    GW["Fabric Gateway client<br/>(host: OPEN — G-10)"]
+
+    subgraph LEDGER["Tenant channel — three orgs"]
+        direction TB
+        P1["Platform org peer<br/>(co-signs writes)"]
+        P2["Enterprise-client org peer<br/>(co-signs writes; verifies against ITSELF)"]
+        P3["Auditor org peer<br/>(READ-ONLY — never in the write-endorsement set)"]
+        ORD{{"Orderer — commits<br/>EmployeeProfileRecord"}}
+        P1 --- ORD
+        P2 --- ORD
+        P3 -.->|"Evaluate only<br/>(own peer, own copy)"| ORD
+    end
+
+    HR --> WP
+    WP -- "RecordProfileSection(employeeID, profileSection,<br/>dataHash, prevHash, updatedBy, ipfsCIDs, ...)<br/>0 bytes plaintext, 0 bytes salt (ADR-0020)" --> GW
+    GW -- "endorse" --> P1
+    GW -- "co-sign — AND(platform org, enterprise-client org)" --> P2
+
+    subgraph VERIFY["Client-side verification (FR-34..37) — no plaintext ever crosses to a peer"]
+        direction TB
+        SALTCH["Separate, audited salt hand-off<br/>(FR-36 — out of scope here)"]
+        RECOMPUTE["Recompute SHA-256(salt‖JCS(value))<br/>LOCALLY, on the verifier's machine"]
+        COMPARE["Compare to GetProfileSectionRecord's<br/>stored dataHash — LOCALLY"]
+    end
+
+    EMP -- "Evaluate GetProfileSectionRecord /<br/>GetProfileHistory — against OWN peer" --> P2
+    AUD -- "Evaluate — against OWN peer" --> P3
+    P2 -. "{dataHash, version, timestamp, updatedBy}<br/>ONLY — never a value, never a salt" .-> RECOMPUTE
+    SALTCH -.-> RECOMPUTE
+    RECOMPUTE --> COMPARE
+
+    subgraph ERASURE["Erasure — off-chain only (cross-ref, pending ADR-0015)"]
+        direction TB
+        ERASE["Crypto-shred:<br/>delete DB field + destroy document key<br/>+ destroy salt + employeeKey_i"]
+    end
+    ERASE -. "0 on-chain transactions —<br/>ledger NEVER touched by erasure" .-> LEDGER
+    OFFSTORE -.-> ERASE
+    DB -.-> ERASE
+
+    classDef boundary fill:#fff,stroke:#c00,stroke-width:2px,color:#c00;
+    class GW boundary
