@@ -1,0 +1,57 @@
+%% Data-flow diagram with trust boundaries for the HRIS PII-anchoring prototype (G6, re-derived 2026-08-06).
+%% Dashed subgraphs = trust boundaries (TB). STRIDE in security-architecture.md is scoped to these.
+%% Supersedes the pre-reconciliation diagram: no Kafka, no anchor-service, no PDC, no two-org topology.
+%% This diagram is drawn ONCE for a single tenant's channel; TB4 is replicated per tenant (FR-20/24).
+graph TB
+  EMP(["Employee / HR-admin<br/>(browser)"])
+
+  subgraph TB1["TB1 - Public edge"]
+    GW["Gateway<br/>injects trusted headers (X-Company-ID/X-SSO-User-ID) - G-18/PB-1 OPEN"]
+  end
+
+  subgraph TB2["TB2 - HRIS profile-write path (in-band, ADR-0014)<br/>NO Kafka, NO anchor-service"]
+    APP["HRIS profile-write handler<br/>computes DataHash/EmployeeID/UpdatedBy off-chain,<br/>calls RecordProfileSection synchronously"]
+  end
+
+  subgraph TB3["TB3 - Off-chain stores"]
+    DB[("Operational DB (system-of-record)<br/>PII AES-256 at rest - Domain B")]
+    SALT[("salt store + employeeKey_i<br/>per-employee - Domain C")]
+    PSK[("pseudonymKey<br/>per-tenant master, HSM-custody - Domain C")]
+    KEMP[("KEY_EMPLOYEE store<br/>per-employee - Domain B'")]
+  end
+
+  subgraph TB5["TB5 - IPFS Private Cluster (4th trust boundary, PRD S11.4)"]
+    IPFS[("encrypted supporting documents<br/>content-addressed by CID<br/>operator + swarm-key are the boundary")]
+  end
+
+  subgraph TB4["TB4 - Fabric channel per tenant (FR-20), mTLS everywhere"]
+    subgraph O1["Org1 - platform"]
+      P1["peer0.org1"]
+      P2["peer1.org1"]
+      ORD["orderer x3 (Raft, crash-fault-tolerant)"]
+    end
+    subgraph O2["Org2 - enterprise client<br/>(independently operated - stated premise, UNVERIFIED, errata E-11)"]
+      P3["peer0.org2"]
+    end
+    subgraph O3["Org3 - auditor (read-only, FR-23)"]
+      P4["peer0.org3"]
+    end
+  end
+
+  EMP -->|HTTPS| GW -->|"trusted headers (G-18)"| APP
+  APP -->|"write section (plaintext)"| DB
+  APP -->|"encrypt doc with KEY_EMPLOYEE"| KEMP
+  KEMP -.->|"ciphertext upload"| IPFS
+  APP -->|"salt + employeeKey_i (derive/store)"| SALT
+  SALT -.->|"employeeKey_i derived from"| PSK
+  APP -->|"RecordProfileSection: DataHash + EmployeeID + UpdatedBy + PrevHash + CID(s) ONLY, mTLS, plaintext NEVER an argument (FR-34)"| P1
+  P1 -->|"endorse AND(Org1,Org2) - pending ADR-0012"| P3
+  P1 --- ORD
+  P3 --- ORD
+  P4 -. "read-only, no endorsement" .- ORD
+
+  classDef store fill:#3a2f1f,stroke:#d9a94a,color:#fff;
+  class DB,SALT,PSK,KEMP,IPFS store;
+  %% Confidentiality invariant (INV-1, PRD S5.2): 0 bytes PII plaintext or reversible derivative
+  %% ever crosses TB2->TB4. IPFS (TB5) carries ciphertext only, keyed by a domain (B') that must
+  %% never be derivable from the pseudonymization domain (C) - ADR-0019.
