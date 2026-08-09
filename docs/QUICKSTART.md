@@ -24,6 +24,38 @@ design artifacts (see `docs/CODEBASE-MAP.md` §6), not part of this local bring-
   benchmark found this genuinely strains an 8-vCPU/16GB laptop under real load; idle bring-up is
   fine.
 
+**You do not need Hyperledger's own `install-fabric.sh` bootstrap script or a `fabric-samples`
+clone** (both from [the official install guide](https://hyperledger-fabric.readthedocs.io/en/latest/install.html)).
+That script's job — get the official Fabric Docker images and CLI binaries onto your machine — is
+already done differently here: every peer/orderer/CA container in this repo's compose files runs
+the real published image directly (`hyperledger/fabric-peer:2.5`, `hyperledger/fabric-orderer:2.5`,
+`hyperledger/fabric-ca:1.5` — see `compose/network-docker-compose.yaml` and
+`compose/ca-docker-compose.yaml`), and `cryptogen`/`configtxgen`/`osnadmin` run **inside** the
+official `hyperledger/fabric-tools:2.5` image via one-off `docker run` calls (§1, §2 below) or the
+long-lived `fabric-tools-net` helper container (§4) — never as local `bin/` binaries. `docker`
+pulls each image the first time it's referenced, so there's no separate manual install step beyond
+having Docker itself. `fabric-samples` isn't needed either: this network's `configtx.yaml` and
+`crypto-config.yaml` are hand-authored for this design (3 orgs, channel-per-tenant), not the
+samples repo's test-network.
+
+One caveat worth knowing: these images are pinned to **floating major.minor tags** (`:2.5`, `:1.5`),
+not exact patch versions — `fabric-network/network/fabric-ca/ca-org1-config.yaml:94` already flags
+this `[VERIFY]` for `fabric-ca:1.5`. The first pull on any given machine gets whatever patch is
+currently latest under that tag, so two machines set up months apart could end up on different
+patch builds. Not a problem for a single local bring-up; pin exact digests if you need
+byte-for-byte reproducibility across machines.
+
+**State database: this network uses LevelDB, not CouchDB** — if you've been reading
+[Fabric's CouchDB tutorial](https://hyperledger-fabric.readthedocs.io/en/latest/couchdb_tutorial.html)
+and wondering why there's no CouchDB container here, it's a ratified design decision, not an
+oversight: `agent-suite/05-adr/ADR-0007-state-database-leveldb.md` chose LevelDB because every
+on-chain read in this design (`GetProfileSectionRecord`/`GetProfileHistory`/
+`GetEmployeeProfileSummary`) is by composite key, with no rich-JSON-query need identified. Every
+peer in `network-docker-compose.yaml` sets `CORE_LEDGER_STATE_STATEDATABASE=goleveldb` explicitly
+(e.g. line 285), and the chaincode itself never calls `GetQueryResult`/`GetPrivateDataQueryResult`.
+If a real rich-query need shows up later, the ADR itself pre-authorizes reopening and switching —
+see that file's "Consequences" section.
+
 ## 1. Generate crypto material
 
 ```sh
