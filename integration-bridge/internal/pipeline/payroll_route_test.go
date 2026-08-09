@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 func TestRegisterProfileSectionRoute_PayrollRoute_DispatchesAndReturnsCommitted(t *testing.T) {
 	var gotEmployeeInternalID, gotUserID string
 	var gotNewValue []byte
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PAYROLL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
@@ -25,7 +25,7 @@ func TestRegisterProfileSectionRoute_PayrollRoute_DispatchesAndReturnsCommitted(
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/PAYROLL",
 		strings.NewReader(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"bankAccountNumber":123456}}`))
@@ -60,7 +60,7 @@ func TestRegisterProfileSectionRoute_PayrollRoute_DispatchesAndReturnsCommitted(
 
 func TestRegisterProfileSectionRoute_PayrollRoute_ValidateFailure_NeverCallsDispatch(t *testing.T) {
 	dispatchCalled := false
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PAYROLL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
@@ -68,7 +68,7 @@ func TestRegisterProfileSectionRoute_PayrollRoute_ValidateFailure_NeverCallsDisp
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/PAYROLL",
 		strings.NewReader(`{"userID":"user-1","newValue":{}}`)) // missing employeeInternalID
@@ -105,7 +105,7 @@ func TestRegisterProfileSectionRoute_PayrollRoute_LargeBankAccountNumber_Preserv
 	const largeAccountNumber = "9223372036854775807" // 19 digits, past 2^53
 
 	var gotNewValue []byte
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PAYROLL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			gotNewValue = newValue
@@ -113,7 +113,7 @@ func TestRegisterProfileSectionRoute_PayrollRoute_LargeBankAccountNumber_Preserv
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL", route, testAuthConfig(), "tenant01", time.Second)
 
 	wantNewValue := `{"bankAccountNumber":` + largeAccountNumber + `}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/PAYROLL", strings.NewReader(

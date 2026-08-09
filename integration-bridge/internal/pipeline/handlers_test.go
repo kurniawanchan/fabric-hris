@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	writepaths "writepaths"
 )
 
-func testAuthConfig() authConfig {
-	return authConfig{APIKey: "secret-key", CompanyID: "tenant01"}
+func testAuthConfig() AuthConfig {
+	return AuthConfig{APIKey: "secret-key", CompanyID: "tenant01"}
 }
 
 func newPersonalRequest(t *testing.T, body string, withAuth bool) *http.Request {
@@ -32,7 +32,7 @@ func newPersonalRequest(t *testing.T, body string, withAuth bool) *http.Request 
 func TestRegisterProfileSectionRoute_ValidRequest_DispatchesAndReturnsCommitted(t *testing.T) {
 	var gotEmployeeInternalID, gotUserID string
 	var gotNewValue []byte
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PERSONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
@@ -42,7 +42,7 @@ func TestRegisterProfileSectionRoute_ValidRequest_DispatchesAndReturnsCommitted(
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := newPersonalRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"fullName":"Test"}}`, true)
 	rec := httptest.NewRecorder()
@@ -71,7 +71,7 @@ func TestRegisterProfileSectionRoute_ValidRequest_DispatchesAndReturnsCommitted(
 
 func TestRegisterProfileSectionRoute_AuthFailure_NeverCallsDispatch(t *testing.T) {
 	dispatchCalled := false
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PERSONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
@@ -79,7 +79,7 @@ func TestRegisterProfileSectionRoute_AuthFailure_NeverCallsDispatch(t *testing.T
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := newPersonalRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{}}`, false)
 	rec := httptest.NewRecorder()
@@ -102,7 +102,7 @@ func TestRegisterProfileSectionRoute_AuthFailure_NeverCallsDispatch(t *testing.T
 
 func TestRegisterProfileSectionRoute_ValidateFailure_NeverCallsDispatch(t *testing.T) {
 	dispatchCalled := false
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PERSONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
@@ -110,7 +110,7 @@ func TestRegisterProfileSectionRoute_ValidateFailure_NeverCallsDispatch(t *testi
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := newPersonalRequest(t, `{"userID":"user-1","newValue":{}}`, true) // missing employeeInternalID
 	rec := httptest.NewRecorder()
@@ -132,7 +132,7 @@ func TestRegisterProfileSectionRoute_ValidateFailure_NeverCallsDispatch(t *testi
 }
 
 func TestRegisterProfileSectionRoute_PartialFailureFromDispatch_ReturnsPartialFailure(t *testing.T) {
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PERSONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			return nil, &writepaths.PartialFailureError{
@@ -144,7 +144,7 @@ func TestRegisterProfileSectionRoute_PartialFailureFromDispatch_ReturnsPartialFa
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := newPersonalRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{}}`, true)
 	rec := httptest.NewRecorder()
@@ -163,7 +163,7 @@ func TestRegisterProfileSectionRoute_PartialFailureFromDispatch_ReturnsPartialFa
 }
 
 func TestRegisterProfileSectionRoute_DispatchTimeout_ReturnsPartialFailureNotTimeout(t *testing.T) {
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PERSONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			<-ctx.Done()
@@ -171,7 +171,7 @@ func TestRegisterProfileSectionRoute_DispatchTimeout_ReturnsPartialFailureNotTim
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", 10*time.Millisecond)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", 10*time.Millisecond)
 
 	req := newPersonalRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{}}`, true)
 	rec := httptest.NewRecorder()
@@ -193,7 +193,7 @@ func TestRegisterProfileSectionRoute_DispatchTimeout_ReturnsPartialFailureNotTim
 // recordID -- not be discarded as "partial_failure" just because it took
 // longer than the timeout.
 func TestRegisterProfileSectionRoute_SlowButSuccessfulDispatch_ReturnsCommitted(t *testing.T) {
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PERSONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			<-ctx.Done()
@@ -201,7 +201,7 @@ func TestRegisterProfileSectionRoute_SlowButSuccessfulDispatch_ReturnsCommitted(
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", 10*time.Millisecond)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", 10*time.Millisecond)
 
 	req := newPersonalRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{}}`, true)
 	rec := httptest.NewRecorder()
@@ -234,7 +234,7 @@ func TestRegisterProfileSectionRoute_NeverLeaksNewValueOrDocumentBytesInResponse
 		name     string
 		body     string
 		auth     bool
-		dispatch dispatchFunc
+		dispatch DispatchFunc
 	}{
 		{
 			name: "committed",
@@ -279,9 +279,9 @@ func TestRegisterProfileSectionRoute_NeverLeaksNewValueOrDocumentBytesInResponse
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			route := routeConfig{ProfileSection: "PERSONAL", Dispatch: tc.dispatch}
+			route := RouteConfig{ProfileSection: "PERSONAL", Dispatch: tc.dispatch}
 			mux := http.NewServeMux()
-			registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
+			RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
 
 			req := newPersonalRequest(t, tc.body, tc.auth)
 			rec := httptest.NewRecorder()
@@ -302,14 +302,14 @@ func TestRegisterProfileSectionRoute_NeverLeaksNewValueOrDocumentBytesInResponse
 }
 
 func TestRegisterProfileSectionRoute_WrongMethod_Returns405(t *testing.T) {
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "PERSONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			return nil, nil
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/profile-sections/PERSONAL", nil)
 	rec := httptest.NewRecorder()

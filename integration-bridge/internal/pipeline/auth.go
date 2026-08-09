@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"crypto/subtle"
@@ -6,10 +6,10 @@ import (
 	"net/http"
 )
 
-// authConfig holds the credentials [auth] checks every request against.
+// AuthConfig holds the credentials [auth] checks every request against.
 // One bridge deployment serves exactly one tenant (AD-2), so CompanyID is a
 // single configured value, not a lookup.
-type authConfig struct {
+type AuthConfig struct {
 	APIKey    string
 	CompanyID string
 }
@@ -31,7 +31,7 @@ type authConfig struct {
 // constant-time comparison's whole purpose (code review finding).
 var errMissingOrIncorrectCredentials = errors.New("integrationbridge: missing or incorrect credentials")
 
-func authenticate(r *http.Request, cfg authConfig) error {
+func authenticate(r *http.Request, cfg AuthConfig) error {
 	apiKey := r.Header.Get("X-Api-Key")
 	if apiKey == "" || subtle.ConstantTimeCompare([]byte(apiKey), []byte(cfg.APIKey)) != 1 {
 		return &authError{errMissingOrIncorrectCredentials}

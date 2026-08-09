@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,14 +8,26 @@ import (
 	"time"
 
 	writepaths "writepaths"
+
+	"integrationbridge/internal/pipeline"
 )
+
+// testAuthConfig mirrors internal/pipeline/handlers_test.go's own helper of
+// the same name -- kept separately here (rather than exported from pipeline
+// just for tests) because AuthConfig's zero-friction construction doesn't
+// need a shared helper across a package boundary; the credential literals
+// below must stay identical to pipeline's copy since several tests in this
+// file authenticate against a mux built with it.
+func testAuthConfig() pipeline.AuthConfig {
+	return pipeline.AuthConfig{APIKey: "secret-key", CompanyID: "tenant01"}
+}
 
 // stubHooks builds a *writepaths.Hooks whose write-path methods are
 // unreachable in these tests (buildMux only needs method VALUES to assign
-// as dispatchFunc -- it never calls them itself). A nil Store/Keys/etc. is
+// as pipeline.DispatchFunc -- it never calls them itself). A nil Store/Keys/etc. is
 // fine here since no test in this file causes a route handler to actually
 // invoke a Hooks method; each test only exercises 404/routing behavior or
-// substitutes its own stub dispatch via a fresh routeConfig where needed.
+// substitutes its own stub dispatch via a fresh pipeline.RouteConfig where needed.
 func stubHooksForMuxTest() *writepaths.Hooks {
 	return &writepaths.Hooks{TenantID: "tenant01"}
 }
@@ -87,47 +97,25 @@ func TestBuildMux_PersonalAndPayrollAreIndependentRoutes(t *testing.T) {
 	}
 }
 
-// TestRegisterProfileSectionRoute_TwoRoutesOnOneMux_NeverCrossDispatch is the
-// real cross-dispatch proof for AC#3, using registerProfileSectionRoute
-// directly (not buildMux) so distinct stub Dispatch functions can be
-// substituted per route -- proving PERSONAL's handler never reaches
-// PAYROLL's dispatch target or vice versa, regardless of what the caller
-// does on its own side.
-func TestRegisterProfileSectionRoute_TwoRoutesOnOneMux_NeverCrossDispatch(t *testing.T) {
-	var personalCalled, payrollCalled bool
+// TestBuildMux_FamilyPath_IsNotRegistered guards against the naming trap
+// directly, against the REAL production wiring: "/v1/profile-sections/FAMILY"
+// must NOT resolve to anything on the mux main.go actually builds, only the
+// ratified "ADDITIONAL" enum value is a real route. Deliberately built via
+// buildMux (not a throwaway http.NewServeMux() + a manually re-declared
+// pipeline.RouteConfig{ProfileSection: "ADDITIONAL", ...}) -- a test that hardcodes
+// the correct literal itself would pass unconditionally regardless of what
+// buildMux actually registers, proving nothing about the artifact this
+// story ships (code review finding; the identical fix is still owed to
+// Story 1.3's analogous TestRegisterProfileSectionRoute_TransferPath_IsNotRegistered,
+// tracked in deferred-work.md rather than reopened here).
+func TestBuildMux_FamilyPath_IsNotRegistered(t *testing.T) {
+	mux := buildMux(stubHooksForMuxTest(), testAuthConfig(), time.Second)
 
-	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL",
-		routeConfig{ProfileSection: "PERSONAL", Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
-			personalCalled = true
-			return []byte(`{"recordID":"rec-personal"}`), nil
-		}},
-		testAuthConfig(), "tenant01", time.Second)
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL",
-		routeConfig{ProfileSection: "PAYROLL", Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
-			payrollCalled = true
-			return []byte(`{"recordID":"rec-payroll"}`), nil
-		}},
-		testAuthConfig(), "tenant01", time.Second)
-
-	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/PAYROLL",
-		strings.NewReader(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"bankAccountNumber":123}}`))
-	req.Header.Set("X-Api-Key", "secret-key")
-	req.Header.Set("X-Company-ID", "tenant01")
+	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/FAMILY", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	var body map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("response body is not valid JSON: %v", err)
-	}
-	if payrollCalled == false {
-		t.Error("PAYROLL request never reached the PAYROLL dispatch target")
-	}
-	if personalCalled {
-		t.Error("PAYROLL request incorrectly reached the PERSONAL dispatch target -- routes are cross-dispatching")
-	}
-	if body["recordID"] != "rec-payroll" {
-		t.Errorf("recordID = %v, want %q", body["recordID"], "rec-payroll")
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status code = %d, want 404 -- \"FAMILY\" must never be a registered route path", rec.Code)
 	}
 }

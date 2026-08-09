@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import "context"
 
@@ -8,7 +8,7 @@ import "context"
 // no typed error to unwrap them from (e.g. the [dispatch] timeout path,
 // AD-4, has no *writepaths.PartialFailureError to source them from).
 //
-// Today, registerProfileSectionRoute (handlers.go) achieves this by holding
+// Today, RegisterProfileSectionRoute (handlers.go) achieves this by holding
 // bc as a closure variable and mutating/reading it directly -- classify()
 // and respond() receive what they need as ordinary parameters, not via
 // context retrieval. withBridgeCtx/bridgeCtxFrom below exist so a future
@@ -16,6 +16,14 @@ import "context"
 // from ctx without needing its own parameter threaded through every call
 // site; they are not currently called from production code, only from this
 // file's own test (Story 1.2 code review, Decision 2).
+//
+// The cmd/integrationbridge + internal/pipeline package split was evaluated
+// as a possible reason to finally wire bridgeCtxFrom in, and the answer was
+// no: the split puts all 5 pipeline stages in this same package, so there is
+// no new boundary for it to cross that would justify retrieving bc from ctx
+// instead of the closure variable already in hand. It remains intentionally
+// unused until a future stage (e.g. logging/observability) actually needs to
+// read the context back out.
 type bridgectx struct {
 	EmployeeInternalID string
 	ProfileSection     string

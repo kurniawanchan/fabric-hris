@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 func TestRegisterProfileSectionRoute_EducationRoute_DispatchesAndReturnsCommitted(t *testing.T) {
 	var gotEmployeeInternalID, gotUserID string
 	var gotNewValue []byte
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "EDUCATION",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
@@ -26,7 +26,7 @@ func TestRegisterProfileSectionRoute_EducationRoute_DispatchesAndReturnsCommitte
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/EDUCATION", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/EDUCATION", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/EDUCATION",
 		strings.NewReader(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"degree":"B.Sc."}}`))
@@ -70,7 +70,7 @@ func TestRegisterProfileSectionRoute_EducationRoute_DispatchesAndReturnsCommitte
 // gate" this story's AC actually claims.
 func TestRegisterProfileSectionRoute_EducationRoute_ValidateFailure_NeverCallsDispatch(t *testing.T) {
 	dispatchCalled := false
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "EDUCATION",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
@@ -78,7 +78,7 @@ func TestRegisterProfileSectionRoute_EducationRoute_ValidateFailure_NeverCallsDi
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/EDUCATION", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/EDUCATION", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/EDUCATION",
 		strings.NewReader(`{"userID":"user-1","newValue":{}}`)) // missing employeeInternalID; no approval field of any kind

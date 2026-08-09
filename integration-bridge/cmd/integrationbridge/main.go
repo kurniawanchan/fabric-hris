@@ -19,6 +19,8 @@ import (
 
 	gatewayclient "gatewayclient"
 	writepaths "writepaths"
+
+	"integrationbridge/internal/pipeline"
 )
 
 func main() {
@@ -63,22 +65,22 @@ func (s *shutdownSequence) Close() error {
 // about the whole set, not about any single route in isolation). Every call
 // shares the identical pipeline (AD-5); only ProfileSection and Dispatch
 // vary per route.
-func buildMux(hooks *writepaths.Hooks, authCfg authConfig, dispatchTimeout time.Duration) *http.ServeMux {
+func buildMux(hooks *writepaths.Hooks, authCfg pipeline.AuthConfig, dispatchTimeout time.Duration) *http.ServeMux {
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL",
-		routeConfig{ProfileSection: "PERSONAL", Dispatch: hooks.UpdatePersonalData},
+	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL",
+		pipeline.RouteConfig{ProfileSection: "PERSONAL", Dispatch: hooks.UpdatePersonalData},
 		authCfg, hooks.TenantID, dispatchTimeout)
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/EMPLOYMENT",
-		routeConfig{ProfileSection: "EMPLOYMENT", Dispatch: hooks.ApproveEmploymentTransfer},
+	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/EMPLOYMENT",
+		pipeline.RouteConfig{ProfileSection: "EMPLOYMENT", Dispatch: hooks.ApproveEmploymentTransfer},
 		authCfg, hooks.TenantID, dispatchTimeout)
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/EDUCATION",
-		routeConfig{ProfileSection: "EDUCATION", Dispatch: hooks.RecordEducationHistory},
+	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/EDUCATION",
+		pipeline.RouteConfig{ProfileSection: "EDUCATION", Dispatch: hooks.RecordEducationHistory},
 		authCfg, hooks.TenantID, dispatchTimeout)
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/ADDITIONAL",
-		routeConfig{ProfileSection: "ADDITIONAL", Dispatch: hooks.ApproveFamilyDataChange},
+	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/ADDITIONAL",
+		pipeline.RouteConfig{ProfileSection: "ADDITIONAL", Dispatch: hooks.ApproveFamilyDataChange},
 		authCfg, hooks.TenantID, dispatchTimeout)
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL",
-		routeConfig{ProfileSection: "PAYROLL", Dispatch: hooks.UpdatePayrollBankAccount},
+	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL",
+		pipeline.RouteConfig{ProfileSection: "PAYROLL", Dispatch: hooks.UpdatePayrollBankAccount},
 		authCfg, hooks.TenantID, dispatchTimeout)
 	return mux
 }
@@ -109,7 +111,7 @@ func run() error {
 	}
 	log.Printf("integrationbridge: ready (tenant=%s)", hooks.TenantID)
 
-	authCfg := authConfig{APIKey: cfg.APIKey, CompanyID: cfg.CompanyID}
+	authCfg := pipeline.AuthConfig{APIKey: cfg.APIKey, CompanyID: cfg.CompanyID}
 	dispatchTimeout := ResolveDispatchTimeout(os.Getenv)
 	mux := buildMux(hooks, authCfg, dispatchTimeout)
 

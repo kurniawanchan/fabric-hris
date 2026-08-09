@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"errors"
@@ -20,7 +20,7 @@ func newAuthRequest(t *testing.T, apiKey, companyID string) *http.Request {
 }
 
 func TestAuthenticate_CorrectCredentials_Succeeds(t *testing.T) {
-	cfg := authConfig{APIKey: "secret-key", CompanyID: "tenant01"}
+	cfg := AuthConfig{APIKey: "secret-key", CompanyID: "tenant01"}
 	req := newAuthRequest(t, "secret-key", "tenant01")
 
 	if err := authenticate(req, cfg); err != nil {
@@ -29,28 +29,28 @@ func TestAuthenticate_CorrectCredentials_Succeeds(t *testing.T) {
 }
 
 func TestAuthenticate_MissingAPIKey_Rejected(t *testing.T) {
-	cfg := authConfig{APIKey: "secret-key", CompanyID: "tenant01"}
+	cfg := AuthConfig{APIKey: "secret-key", CompanyID: "tenant01"}
 	req := newAuthRequest(t, "", "tenant01")
 
 	assertAuthError(t, authenticate(req, cfg))
 }
 
 func TestAuthenticate_WrongAPIKey_Rejected(t *testing.T) {
-	cfg := authConfig{APIKey: "secret-key", CompanyID: "tenant01"}
+	cfg := AuthConfig{APIKey: "secret-key", CompanyID: "tenant01"}
 	req := newAuthRequest(t, "wrong-key", "tenant01")
 
 	assertAuthError(t, authenticate(req, cfg))
 }
 
 func TestAuthenticate_MissingCompanyID_Rejected(t *testing.T) {
-	cfg := authConfig{APIKey: "secret-key", CompanyID: "tenant01"}
+	cfg := AuthConfig{APIKey: "secret-key", CompanyID: "tenant01"}
 	req := newAuthRequest(t, "secret-key", "")
 
 	assertAuthError(t, authenticate(req, cfg))
 }
 
 func TestAuthenticate_WrongCompanyID_Rejected(t *testing.T) {
-	cfg := authConfig{APIKey: "secret-key", CompanyID: "tenant01"}
+	cfg := AuthConfig{APIKey: "secret-key", CompanyID: "tenant01"}
 	req := newAuthRequest(t, "secret-key", "tenant02")
 
 	assertAuthError(t, authenticate(req, cfg))
@@ -63,7 +63,7 @@ func TestAuthenticate_WrongCompanyID_Rejected(t *testing.T) {
 // "right key, wrong company ID"). Both failure branches must produce the
 // exact same message.
 func TestAuthenticate_APIKeyAndCompanyIDFailures_ProduceIdenticalMessage(t *testing.T) {
-	cfg := authConfig{APIKey: "secret-key", CompanyID: "tenant01"}
+	cfg := AuthConfig{APIKey: "secret-key", CompanyID: "tenant01"}
 
 	wrongAPIKeyErr := authenticate(newAuthRequest(t, "wrong-key", "tenant01"), cfg)
 	wrongCompanyIDErr := authenticate(newAuthRequest(t, "secret-key", "tenant02"), cfg)

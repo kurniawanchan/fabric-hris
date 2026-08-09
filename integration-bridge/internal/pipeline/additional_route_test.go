@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 func TestRegisterProfileSectionRoute_AdditionalRoute_DispatchesAndReturnsCommitted(t *testing.T) {
 	var gotEmployeeInternalID, gotUserID string
 	var gotNewValue []byte
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "ADDITIONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
@@ -34,7 +34,7 @@ func TestRegisterProfileSectionRoute_AdditionalRoute_DispatchesAndReturnsCommitt
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/ADDITIONAL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/ADDITIONAL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/ADDITIONAL",
 		strings.NewReader(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"dependentName":"Test Child"}}`))
@@ -67,32 +67,9 @@ func TestRegisterProfileSectionRoute_AdditionalRoute_DispatchesAndReturnsCommitt
 	}
 }
 
-// TestBuildMux_FamilyPath_IsNotRegistered guards against the naming trap
-// directly, against the REAL production wiring: "/v1/profile-sections/FAMILY"
-// must NOT resolve to anything on the mux main.go actually builds, only the
-// ratified "ADDITIONAL" enum value is a real route. Deliberately built via
-// buildMux (not a throwaway http.NewServeMux() + a manually re-declared
-// routeConfig{ProfileSection: "ADDITIONAL", ...}) -- a test that hardcodes
-// the correct literal itself would pass unconditionally regardless of what
-// buildMux actually registers, proving nothing about the artifact this
-// story ships (code review finding; the identical fix is still owed to
-// Story 1.3's analogous TestRegisterProfileSectionRoute_TransferPath_IsNotRegistered,
-// tracked in deferred-work.md rather than reopened here).
-func TestBuildMux_FamilyPath_IsNotRegistered(t *testing.T) {
-	mux := buildMux(stubHooksForMuxTest(), testAuthConfig(), time.Second)
-
-	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/FAMILY", strings.NewReader(`{}`))
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("status code = %d, want 404 -- \"FAMILY\" must never be a registered route path", rec.Code)
-	}
-}
-
 func TestRegisterProfileSectionRoute_AdditionalRoute_AuthFailure_NeverCallsDispatch(t *testing.T) {
 	dispatchCalled := false
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "ADDITIONAL",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
@@ -100,7 +77,7 @@ func TestRegisterProfileSectionRoute_AdditionalRoute_AuthFailure_NeverCallsDispa
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/ADDITIONAL", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/ADDITIONAL", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/ADDITIONAL",
 		strings.NewReader(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{}}`))

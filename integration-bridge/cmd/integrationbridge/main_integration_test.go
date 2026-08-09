@@ -16,8 +16,10 @@ import (
 
 // netDir mirrors gateway-client/gatewayclient_integration_test.go's own
 // constant -- same live-network crypto material, same convention, not
-// reinvented. Requires docs/QUICKSTART.md's stack to be up.
-const netDir = "../fabric-network/network"
+// reinvented. Requires docs/QUICKSTART.md's stack to be up. One more "../"
+// than gateway-client's own copy: this file lives two directories deeper
+// (integration-bridge/cmd/integrationbridge) than integration-bridge/ itself.
+const netDir = "../../../fabric-network/network"
 
 // TestIntegration_ConstructsOnceAndShutsDownCleanly builds and runs the real
 // integration-bridge binary against the live network from docs/QUICKSTART.md,

@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"encoding/json"
@@ -51,7 +51,7 @@ func httpStatusFor(status string) int {
 // itself never classifies anything except this one invariant check: a
 // "committed" status with no usable recordID cannot be a real chaincode
 // success (RecordProfileSectionResult always carries one) -- it can only
-// come from a bug in a Hooks/dispatchFunc implementation. Reporting it as
+// come from a bug in a Hooks/DispatchFunc implementation. Reporting it as
 // "committed" anyway would silently hide that bug behind an
 // indistinguishable-from-success response (code review finding); reporting
 // it as "error" surfaces it instead.

@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"context"
@@ -12,13 +12,13 @@ import (
 
 // TestRegisterProfileSectionRoute_EmploymentRoute_DispatchesAndReturnsCommitted
 // proves the shared pipeline works unchanged for the EMPLOYMENT route (Story
-// 1.3, AC#1) -- registerProfileSectionRoute/dispatch/classify/respond are
+// 1.3, AC#1) -- RegisterProfileSectionRoute/dispatch/classify/respond are
 // route-agnostic and already exhaustively tested by Story 1.2; this pins the
 // exact path/ProfileSection value this story adds, nothing more.
 func TestRegisterProfileSectionRoute_EmploymentRoute_DispatchesAndReturnsCommitted(t *testing.T) {
 	var gotEmployeeInternalID, gotUserID string
 	var gotNewValue []byte
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "EMPLOYMENT",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
@@ -28,7 +28,7 @@ func TestRegisterProfileSectionRoute_EmploymentRoute_DispatchesAndReturnsCommitt
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/EMPLOYMENT", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/EMPLOYMENT", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/EMPLOYMENT",
 		strings.NewReader(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"newTitle":"Senior Engineer"}}`))
@@ -63,7 +63,7 @@ func TestRegisterProfileSectionRoute_EmploymentRoute_DispatchesAndReturnsCommitt
 
 func TestRegisterProfileSectionRoute_EmploymentRoute_AuthFailure_NeverCallsDispatch(t *testing.T) {
 	dispatchCalled := false
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "EMPLOYMENT",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
@@ -71,7 +71,7 @@ func TestRegisterProfileSectionRoute_EmploymentRoute_AuthFailure_NeverCallsDispa
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/EMPLOYMENT", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/EMPLOYMENT", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/EMPLOYMENT",
 		strings.NewReader(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{}}`))
@@ -102,14 +102,14 @@ func TestRegisterProfileSectionRoute_EmploymentRoute_AuthFailure_NeverCallsDispa
 // "EMPLOYMENT" is a real route, matching Story 1.5's identical guard for
 // ADDITIONAL/FAMILY.
 func TestRegisterProfileSectionRoute_TransferPath_IsNotRegistered(t *testing.T) {
-	route := routeConfig{
+	route := RouteConfig{
 		ProfileSection: "EMPLOYMENT",
 		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
 			return nil, nil
 		},
 	}
 	mux := http.NewServeMux()
-	registerProfileSectionRoute(mux, "POST /v1/profile-sections/EMPLOYMENT", route, testAuthConfig(), "tenant01", time.Second)
+	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/EMPLOYMENT", route, testAuthConfig(), "tenant01", time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/TRANSFER", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()

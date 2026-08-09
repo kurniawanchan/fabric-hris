@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"context"
@@ -23,7 +23,7 @@ func (e *validationError) Unwrap() error { return e.error }
 // module that decides a response's status. It classifies by error TYPE
 // only; it never sources employeeInternalID/profileSection from err --
 // this function answers "what happened", not "to whom", and doesn't even
-// accept identifiers as a parameter. Callers (registerProfileSectionRoute)
+// accept identifiers as a parameter. Callers (RegisterProfileSectionRoute)
 // keep identifiers available separately (today via a closure variable, see
 // pipeline.go's bridgectx) precisely because errors.As-unwrapping an error
 // wouldn't work on the [dispatch] timeout path, which has no typed error to

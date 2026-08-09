@@ -1,4 +1,4 @@
-package main
+package pipeline
 
 import (
 	"encoding/json"
@@ -35,7 +35,7 @@ func TestRespond_Committed_IncludesRecordID(t *testing.T) {
 // fix for a code review finding: silently downgrading to
 // {"status":"committed"} with no recordID and no signal hid a real
 // invariant violation (fn succeeded but returned garbage). This can only
-// happen from a bug in a Hooks/dispatchFunc implementation, never from live
+// happen from a bug in a Hooks/DispatchFunc implementation, never from live
 // chaincode -- respond surfaces it as status "error" instead of pretending
 // the write is fine.
 func TestRespond_Committed_MalformedResultBytes_ReportsErrorNotCommitted(t *testing.T) {
