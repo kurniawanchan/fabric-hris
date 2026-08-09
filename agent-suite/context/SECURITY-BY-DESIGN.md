@@ -50,6 +50,15 @@ exposure. These are documented FACTs, not recommendations.
 mandate override intent but not a timeline; the axis is exposure — an internet-reachable orderer with
 default `Admins` is Critical, an internal-only pilot is lower.
 
+**Known gap, not an open assumption (G-37, confirmed 2026-08-09):** the Operations service row
+above states this design's *intent*, not its current state. The live bring-up
+(`fabric-network/network/compose/network-docker-compose.yaml`) sets no
+`*_OPERATIONS_TLS_ENABLED`/`CLIENTAUTHREQUIRED` flag on any of the 5 peers or 3 orderers, so every
+node's operations port (`/healthz`, `/metrics`, `/logspec`) is reachable in plaintext today, not
+behind mutual TLS. Not a PII exposure — these endpoints carry no ledger data — but D13 should not
+be read as enforced for this surface until this is closed. See
+`../11-execution/grounding-gaps.md` G-37.
+
 ---
 
 ## Tenet 2 — Least privilege (grant, never blanket-trust)

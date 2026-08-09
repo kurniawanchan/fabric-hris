@@ -172,7 +172,7 @@ not exempt.
 |---|---|---|
 | Node ↔ node, client ↔ node | **D13** — TLS on every peer/orderer across all three orgs; SANs required on each server cert | [docs: enable_tls.rst], [docs: security_model.md] |
 | Sensitive / admin links | Mutual TLS (`clientAuthRequired`) — **off by default**, turn on for cross-org + operator | [docs: enable_tls.rst] |
-| Operations endpoint | Mutual TLS with client-cert auth, **no MSP** | [docs: security_model.md] |
+| Operations endpoint | Mutual TLS with client-cert auth, **no MSP** — **not enabled in the live bring-up, G-37** | [docs: security_model.md] |
 | Proxies | Must be TLS-passthrough; a terminating proxy breaks node verification | [docs: enable_tls.rst] |
 | HRIS ↔ gateway | Gateway TLS termination + header injection (trust boundary to verify) | `[ASSUMPTION G-18/PB-1]` |
 | HRIS/Fabric ↔ IPFS Private Cluster | A **new** V9 surface (the cluster is a fourth trust boundary, ADR-0016) with no corpus-cited control yet — swarm-key gating restricts membership, but transport hardening for the cluster API itself is not yet ADR'd | `[ASSUMPTION]`, owned by `fabric-architect`/`fabric-engineer` |
@@ -203,5 +203,5 @@ decision **S-1** lifts the design-only boundary.
 | V4 Access Control | D5, D7, D8, D9 | Guard/IDOR + RBAC | G-11 |
 | V6 Stored Crypto | D2, D3, D14 (no D1 — no PDC) | AES envelope + bankhasher; `employeeKey_i`/`KEY_EMPLOYEE` (ADR-0019/0021) | G-15 (closed on domain count), G-21 |
 | V7 Logging | D2, D12 | activity log + PII masking | G-06, G-26 |
-| V9 Communication | D13 | gateway TLS; IPFS cluster leg open | G-18/PB-1, IPFS `[ASSUMPTION]` |
+| V9 Communication | D13 | gateway TLS; IPFS cluster leg open | G-18/PB-1, IPFS `[ASSUMPTION]`, operations-TLS not enabled (G-37) |
 | target level | — | — | **G-14, G-08** |
