@@ -32,11 +32,22 @@ docker run --rm -v "$PWD":/work -w /work hyperledger/fabric-tools:2.5 \
   cryptogen generate --config=./crypto-config/crypto-config.yaml --output=./crypto-config
 ```
 
-**Known gotcha (hit and fixed once this session, at `NET-7`): `cryptogen` is NOT idempotent.**
-Re-running this command against an org that already has material silently regenerates a fresh CA
-keypair, orphaning every cert that CA already issued. Run this exactly once per org; if you need to
-add a tenant later, use `fabric-network/tools/tenantprovision` (§9), which has its own
-skip-if-exists guard — don't re-run raw `cryptogen` by hand.
+**Known gotcha (hit at `NET-7`, hit again for real at `NET-3`'s 2026-08-09 addendum):
+`cryptogen` is NOT idempotent.** Re-running this exact command — even unmodified, even just to
+"make sure crypto material exists" — against org directories that already have material silently
+mints a fresh CA keypair for every org named in `crypto-config.yaml` (`OrdererOrg`/org1, `Org1`,
+`OrgClient-tenant01`, `Org3`) while leaving already-issued peer/orderer certs untouched, orphaning
+all of them (`x509: certificate signed by unknown authority`) — on a **live** network this breaks
+every peer/orderer's TLS and MSP trust at once, and since `crypto-config/` is gitignored, there is
+no backup to recover the old CA keys from. Run this exactly once per org, full stop. If you need to
+add a tenant later, use `fabric-network/tools/tenantprovision` (§10), which has its own
+skip-if-exists guard — don't re-run raw `cryptogen` by hand, and never against
+`crypto-config.yaml` specifically once the network described in §3 is up. If this ever happens
+anyway, recovery is: `docker compose down -v` (§3's compose file — this destroys ledger volumes,
+confirm first), move the broken org directories aside, regenerate, then **also regenerate every
+channel genesis block in §2** — those `.block` files bake in each orderer's TLS cert at generation
+time, so a block generated before the crypto reset will still fail `osnadmin channel join` with the
+same certificate error even after the crypto material itself is fixed.
 
 ## 2. Generate the channel genesis blocks
 
@@ -51,6 +62,12 @@ docker run --rm -v "$PWD":/work -w /work hyperledger/fabric-tools:2.5 \
     -channelID tenant-tenant01 -configPath ./configtx
 ```
 
+**This block is not just config — it's a snapshot of crypto material at generation time.** It bakes
+in each orderer's TLS client cert as a Raft consenter identity. If `crypto-config/` ever changes
+after this block is generated (see §1's gotcha), this file goes stale and `osnadmin channel join`
+fails with a certificate-verification error even though `configtx.yaml` itself never changed —
+regenerate it fresh with the command above whenever crypto material changes, before rejoining.
+
 ## 3. Bring up the peers and orderers
 
 ```sh
@@ -60,6 +77,14 @@ docker compose -f network-docker-compose.yaml up -d
 
 This starts `peer0.org1`, `peer1.org1`, `peer0.org3`, `peer0.tenant01`, and the 3-node Raft orderer
 set (`orderer0/1/2.org1`), all on a Docker network named `fabric-network-net`.
+
+**If this fails with `ports are not available ... bind: address already in use` on port `7071`**
+(the host-side mapping for `orderer0.org1`'s operations listener — remapped from its original
+`7070` because that collides with AnyDesk's default relay port on macOS hosts), something else on
+your machine is already bound to it; find it with `lsof -nP -iTCP:<port> -sTCP:LISTEN` and either
+stop it or remap the host port in `network-docker-compose.yaml`'s `orderer0.org1` service —
+the container-side port (`8443`) is what matters for the network's own trust/config, so remapping
+the host side is always safe.
 
 **Fabric CA (`compose/ca-docker-compose.yaml`) is OPTIONAL, not required for a working network.**
 `QA-5`'s `ST-3` finding: the Fabric-CA-issued PKI's root certs are not actually this network's live
@@ -84,6 +109,11 @@ docker run -d --name fabric-tools-net \
 ```
 
 (`/cc` is where the chaincode package tarball for §6 needs to live — see that step.)
+
+**If this errors with `container name "/fabric-tools-net" is already in use`**, it already exists
+from a previous session (Docker keeps stopped containers around by name) — check
+`docker inspect fabric-tools-net` to confirm its image/network/mounts still match the command
+above, then `docker start fabric-tools-net` instead of removing and recreating it.
 
 ## 5. Join the channel
 
