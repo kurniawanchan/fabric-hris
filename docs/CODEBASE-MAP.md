@@ -18,6 +18,20 @@ agent-suite/             Design documentation: ADRs, PRD, security architecture,
 docs/                    This file and its siblings — practical how-to guides
 ```
 
+**Fabric's two client-facing APIs map onto exactly two files, on opposite sides of the peer
+boundary — nothing else in this repo uses either.** ([overview](https://hyperledger-fabric.readthedocs.io/en/latest/sdk_chaincode.html))
+
+| Official API | What it's for | Used exactly here | Entry point |
+|---|---|---|---|
+| **Contract API** (`fabric-contract-api-go/contractapi`, `v1.2.2`) | Writing the smart contract itself | `chaincode/employeeprofilerecord/chaincode/*.go` (§2) | `chaincode/employeeprofilerecord/main.go:28` — `contractapi.NewChaincode(&chaincode.SmartContract{})` |
+| **Application API** — historically the full `fabric-sdk-go`/java/node SDKs; superseded from Fabric 2.4+ by the **Gateway client API**, which is what's actually vendored (`hyperledger/fabric-gateway`, `v1.12.0`) | Writing an off-chain client that connects to a peer and calls that contract | `write-path-integration/gateway-client/gatewayclient.go` (§3) | `gatewayclient.go:74` — `client.Connect(id, ...)`, then `SubmitTransaction`/`Evaluate*` |
+
+`fabric-network/tools/*` (`netjoin`, `ccdeploy`, `tenantprovision`, etc.) use **neither** — they
+`docker exec` into the `fabric-tools-net` helper container and drive the real `peer`/`osnadmin`/
+`configtxgen` CLI binaries directly (see `docs/QUICKSTART.md` §4), never an SDK.
+`integration-bridge/`'s HTTP handlers don't touch either API directly either — they call
+`write-path-integration/writepaths`' hooks, which are the only thing holding a Gateway connection.
+
 ## 2. `fabric-network/` — the ledger side
 
 | Path | What it is | Backlog item |
@@ -157,3 +171,47 @@ scratch. Full detail is always in the relevant backlog row.
 | Caliper's `fabric:2.5`-bound connector can't connect at all | Zero mTLS support in any published `@hyperledger/fabric-gateway`-based connector version; this network mandates client-cert auth | `QA-4` (patched into the sandboxed `qa-tests/performance/node_modules` only) |
 | A stray, untracked binary named `integrationbridge` appears at `integration-bridge/integrationbridge` after building | Only `go build ./cmd/integrationbridge` (or explicitly building that one package) writes this — since the clean-architecture package split, `integration-bridge/` has two packages (`cmd/integrationbridge` + `internal/pipeline`), so a bare `go build ./...` from the module root no longer has a single main package to default the output name against and produces no stray binary at all. Still `rm` it if you build the `cmd/integrationbridge` package directly and don't need the artifact | Story 1.6's code review; now in `.gitignore`; behavior improved by the later package-split refactor |
 | "directory prefix . does not contain modules listed in go.work" when building `integration-bridge/` | This gotcha does **not** apply here — `integration-bridge/` is its own standalone module (own `go.mod`), never part of `write-path-integration/go.work`; if you see this exact error, you're almost certainly still `cd`-ed into `write-path-integration/` from a previous command | n/a — different module entirely, no fix needed once you `cd integration-bridge` |
+
+## 8. Conformance against official Fabric 2.5 concept docs (audited 2026-08-09)
+
+Checked this network's actual config/code against all 15 pages under
+[Fabric's "Key Concepts" doc tree](https://hyperledger-fabric.readthedocs.io/en/latest/key_concepts.html)
+— not from recollection, but by fetching each page (`readthedocs.io` rate-limited direct fetches;
+fell back to the identical canonical source, `hyperledger/fabric`'s own `docs/source/*.md` on
+GitHub, plus Wayback snapshots) and grepping/reading the repo against every concept it describes.
+
+| Page | Verdict | Key evidence |
+|---|---|---|
+| `key_concepts.html` | Follows (index page — see rows below) | — |
+| `fabric_model.html` | Follows, one concept instantiated differently | Privacy is via **channel-per-tenant** isolation (ADR-0013), not the page's assumed single-shared-channel-plus-PDC model — a ratified choice, not a gap |
+| `network/network.html` | Follows | `network/configtx/configtx.yaml:250-321` (per-tenant channel profiles, no `Consortiums`/system channel); anchor peers `configtx.yaml:93-157` |
+| `identity/identity.html` | Follows | X.509 cert + signing key per node (`crypto-config/peerOrganizations/*/peers/*/msp/{signcerts,keystore}`); root CA per org (`crypto-config.yaml:68-110`) |
+| `membership/membership.html` | Follows | Node OUs enabled (`crypto-config.yaml` `EnableNodeOUs: true`), `admincerts/` correctly empty (superseded by NodeOU `admin` role per Fabric 1.4.3+ guidance), one MSP per org (`Org1MSP`/`OrgClient-tenant01MSP`/`Org3MSP`/`OrdererMSP`) |
+| `policies/policies.html` | Follows | Explicit `AND('Org1MSP.peer','OrgClient-tenant01MSP.peer')` signature policy overriding the `MAJORITY Endorsement` default, `configtx.yaml:297-298`; matched again at commit time, `tools/ccdeploy/main.go:57` |
+| `peers/peers.html` | Follows | `Org3` (auditor) installs the chaincode for its own read-only `Evaluate` calls but carries no `Endorsement` policy key (`configtx.yaml:148-154`) — never endorses, per ADR-0012 |
+| `ledger/ledger.html` | Follows | World state via `PutState`/composite keys (`chaincode/asset.go`); history DB enabled on every peer (`CORE_LEDGER_HISTORY_ENABLEHISTORYDATABASE=true`); append-only — no `DelState`/`PurgePrivateData` anywhere |
+| `orderer/ordering_service.html` | Follows | `etcdraft`, 3-node consenter set (`configtx.yaml:193,209-221`); channel participation API not a system channel (`ORDERER_CHANNELPARTICIPATION_ENABLED=true`, `osnadmin channel join` in `tools/netjoin/`); 1-of-3 CFT actually demonstrated, not just claimed, by `tools/raftfaulttest/` |
+| `smartcontract/smartcontract.html` | Follows | Contract-vs-chaincode terminology matches exactly (`chaincode/contract.go`'s `SmartContract` inside the `employeeprofilerecord` chaincode); world state never asserted-written at execution time, only via `PutState` |
+| `chaincode_lifecycle.html` | Follows | Full package→install→approveformyorg→checkcommitreadiness→commit sequence, `tools/ccdeploy/main.go:142-234`; `metadata.json`'s `type` is literal `"ccaas"` |
+| `private-data/private-data.html` | Deliberately not used (ADR-0015) | Zero non-vendor hits for `transient`/`collections-config`/`_implicit_org_`/`GetPrivateData`/`PurgePrivateData` — the retirement ADR's claim is actually true in the code, not just asserted |
+| `capabilities_concept.html` | Follows, verified against Fabric's own source | `configtx.yaml:172-175` sets `Application: V2_5` (no separate `V2_0` key) — confirmed correct against `common/capabilities/application.go`'s `V2_0Validation()`/`LifecycleV20()`, which return `ap.v20 \|\| ap.v25`, so `V2_5` alone still satisfies the lifecycle's `V2_0` gate |
+| `security_model.html` | **One real gap found — see below** | — |
+| `usecases.html` | Fits the pattern (descriptive page, not a technical checklist) | Multi-org consortium + read-only auditor peer + hash-chained history matches the page's "multi-party, need-a-shared-audit-trail" framing |
+
+**The one genuine gap found — logged as `G-37`** (`agent-suite/11-execution/grounding-gaps.md`):
+this project's own security architecture (`agent-suite/context/SECURITY-BY-DESIGN.md:42`,
+`OWASP-ASVS.md:175`, control **D13**) claims the peer/orderer *operations* service "relies entirely
+on mutual TLS with client-cert auth." The live compose file contradicts this — every node sets
+`CORE_OPERATIONS_LISTENADDRESS`/`ORDERER_OPERATIONS_LISTENADDRESS`
+(`network-docker-compose.yaml:288,331,385,430,475,531,578,629`) with **no** companion
+`*_OPERATIONS_TLS_ENABLED`/`CLIENTAUTHREQUIRED` anywhere in the file, and Fabric's documented
+default for that listener is TLS **disabled** absent that flag. Every node's host-published
+operations port (`9444`–`9447` on peers, `7071`/`8070`/`9070` on orderers) is reachable in
+plaintext with zero client-cert check today. Not a PII exposure (those endpoints carry no
+chaincode data) — but a real, live contradiction between a ratified control and the deployed
+artifact.
+
+**Already-known, deliberate divergences** (re-confirmed still holding, not new): LevelDB not
+CouchDB (`ADR-0007`); PDC retired for channel-per-tenant (`ADR-0015`/`ADR-0013`); org-level MSP
+allow-list instead of the ratified attribute-based ABAC (`ADR-0005`, `G-30`); `cryptogen` material,
+not Fabric CA, is the live trust anchor (`QA-5` `ST-3`, `G-32`).
