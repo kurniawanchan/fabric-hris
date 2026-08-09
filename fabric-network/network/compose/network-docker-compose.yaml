@@ -136,7 +136,7 @@
 #
 #   Orderers         | host gRPC | host Admin | host operations
 #   -----------------|-----------|------------|------------------
-#   orderer0.org1    | 7050      | 7060       | 7070
+#   orderer0.org1    | 7050      | 7060       | 7071 (7070 conflicts with AnyDesk's default relay port on macOS hosts)
 #   orderer1.org1    | 8050      | 8060       | 8070
 #   orderer2.org1    | 9050      | 9060       | 9070
 #
@@ -387,7 +387,7 @@ services:
     ports:
       - "7050:7050"
       - "7060:9443"
-      - "7070:8443"
+      - "7071:8443"
     volumes:
       - ../crypto-config/ordererOrganizations/org1/orderers/orderer0.org1/msp:/var/hyperledger/orderer/msp:ro
       - ../crypto-config/ordererOrganizations/org1/orderers/orderer0.org1/tls:/var/hyperledger/orderer/tls:ro
