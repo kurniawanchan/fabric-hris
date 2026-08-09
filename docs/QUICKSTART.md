@@ -186,7 +186,7 @@ BRIDGE_IPFS_PRIMARY_API=127.0.0.1:5001 \
 BRIDGE_IPFS_REPLICA_API=127.0.0.1:5002 \
 BRIDGE_API_KEY=dev-only-key \
 BRIDGE_COMPANY_ID=tenant01 \
-go run .
+go run ./cmd/integrationbridge
 ```
 
 `LoadConfig` fails fast and names every missing `BRIDGE_*` var at once if you drop one — there's no
