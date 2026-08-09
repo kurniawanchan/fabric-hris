@@ -73,31 +73,41 @@ BMAD epic/story workflow (`_bmad-output/planning-artifacts/epics.md`, `sprint-st
 the `NET-*`/`CC-*`/`REC-*` backlog numbering above — see `README.md`'s own note on why this
 directory is tracked differently.
 
+**Package layout** (a later clean-architecture-flavored refactor split the original flat
+`package main` into two packages, expressing dependency direction without changing the AD-1
+pipeline paradigm — `ARCHITECTURE-SPINE.md` is unchanged by this): `cmd/integrationbridge/` is the
+composition root (`package main` — config loading, concrete client wiring, route table, HTTP
+server lifecycle); `internal/pipeline/` (`package pipeline`) is the 5-stage pipeline itself, and by
+design never imports `gatewayclient`/`ipfsclient`/`keystore` — only `writepaths`, for
+`*writepaths.PartialFailureError`. Building/running now targets `./cmd/integrationbridge`
+explicitly (see §9 gotcha below).
+
 | Path | What it is |
 |---|---|
-| `main.go` | Process entrypoint: loads config, constructs the `GatewayClient`/`Hooks` exactly once, builds the mux (`buildMux`), runs the HTTP server, handles `SIGTERM`/`SIGINT` graceful shutdown |
-| `config.go` | `LoadConfig` — fails fast, naming every missing `BRIDGE_*` env var at once; `ResolveHTTPAddr`/`ResolveDispatchTimeout` — optional, silently default (never fail) on an unset/invalid value |
-| `wiring.go` | `buildHooks` — wires `writepaths.Hooks` to the in-memory store implementations (no persistent store exists anywhere in this codebase yet — every process restart loses every salt/`employeeKey_i`) and a real `ipfsclient.Client` |
-| `auth.go` | `[auth]` stage — constant-time `X-Api-Key`/`X-Company-ID` check against one configured tenant (AD-2: one deployment serves exactly one tenant) |
-| `validate.go` | `[validate]` stage — `newValue` is captured as `json.RawMessage`, never re-parsed, so large integers (e.g. a PAYROLL bank-account number past `float64`'s 2^53 boundary) can never be silently corrupted; body size capped via `http.MaxBytesReader` |
-| `dispatch.go` | `[dispatch]` stage — the one shared timeout budget (`AD-4`); blocks synchronously on the real Hooks call, never races a goroutine against the deadline, and never discards a call that completed successfully just because it ran past budget |
-| `classify.go` | `[map-error]` stage — the single place implementing `AD-3`'s decision table (`committed`/`partial_failure`/`rejected`/`error`) |
-| `respond.go` | `[respond]` stage — writes the `{status, recordID?, detail?}` envelope; HTTP status is pure transport (`AD-3`) |
-| `pipeline.go` | The Stage Contract (`bridgectx`) — carries identifiers across the pipeline; not currently read via `context.Value` by any production stage (they use closure capture instead), only by its own test — see the Story 1.2 code review for why this is a documented, not silently overclaimed, gap |
-| `handlers.go` | `registerProfileSectionRoute` + `routeConfig` — the one function every one of the 5 routes shares; adding a route means adding a `routeConfig` value and a `buildMux` call, never a new handler |
-| `*_route_test.go`, `*_route_integration_test.go` | One pair of test files per route (`personal_route_integration_test.go` also carries the shared `postSection`/`uniqueTestID`/`startPersonalRouteTestBridge` test helpers every other route file reuses) |
+| `cmd/integrationbridge/main.go` | Process entrypoint: loads config, constructs the `GatewayClient`/`Hooks` exactly once, builds the mux (`buildMux`), runs the HTTP server, handles `SIGTERM`/`SIGINT` graceful shutdown |
+| `cmd/integrationbridge/config.go` | `LoadConfig` — fails fast, naming every missing `BRIDGE_*` env var at once; `ResolveHTTPAddr`/`ResolveDispatchTimeout` — optional, silently default (never fail) on an unset/invalid value |
+| `cmd/integrationbridge/wiring.go` | `buildHooks` — wires `writepaths.Hooks` to the in-memory store implementations (no persistent store exists anywhere in this codebase yet — every process restart loses every salt/`employeeKey_i`) and a real `ipfsclient.Client` |
+| `internal/pipeline/auth.go` | `[auth]` stage — constant-time `X-Api-Key`/`X-Company-ID` check against one configured tenant (AD-2: one deployment serves exactly one tenant) |
+| `internal/pipeline/validate.go` | `[validate]` stage — `newValue` is captured as `json.RawMessage`, never re-parsed, so large integers (e.g. a PAYROLL bank-account number past `float64`'s 2^53 boundary) can never be silently corrupted; body size capped via `http.MaxBytesReader` |
+| `internal/pipeline/dispatch.go` | `[dispatch]` stage — the one shared timeout budget (`AD-4`); blocks synchronously on the real Hooks call, never races a goroutine against the deadline, and never discards a call that completed successfully just because it ran past budget |
+| `internal/pipeline/classify.go` | `[map-error]` stage — the single place implementing `AD-3`'s decision table (`committed`/`partial_failure`/`rejected`/`error`); the one deliberate exception to the "no sibling-module imports" rule above, since `writepaths` is this system's domain core, not infrastructure |
+| `internal/pipeline/respond.go` | `[respond]` stage — writes the `{status, recordID?, detail?}` envelope; HTTP status is pure transport (`AD-3`) |
+| `internal/pipeline/pipeline.go` | The Stage Contract (`bridgectx`) — carries identifiers across the pipeline; not currently read via `context.Value` by any production stage (they use closure capture instead), only by its own test — see the Story 1.2 code review for why this is a documented, not silently overclaimed, gap; re-evaluated (and left as-is) when the package split landed, since the split introduced no new boundary for it to cross |
+| `internal/pipeline/handlers.go` | `RegisterProfileSectionRoute` + `RouteConfig` — the one function every one of the 5 routes shares; adding a route means adding a `RouteConfig` value and a `buildMux` call, never a new handler. Exported (unlike the other pipeline internals) because `cmd/integrationbridge/main.go` calls it across the package boundary |
+| `internal/pipeline/*_route_test.go`, `cmd/integrationbridge/*_route_integration_test.go` | One pair of test files per route (`personal_route_integration_test.go` also carries the shared `postSection`/`uniqueTestID`/`startPersonalRouteTestBridge` test helpers every other route file reuses) |
 
 **If you're adding a 6th route**: this can't actually happen without a 6th ratified
 `ProfileSection` enum value on the chaincode side first (§2's `asset.go` `IsValidProfileSection` and
 a matching `writepaths.go` hook, per §3's own "adding a 6th `ProfileSection`" note) — the bridge has
 no independent route beyond what the chaincode enum ratifies. Once that exists: add one
-`routeConfig{ProfileSection: "...", Dispatch: hooks.YourNewHook}` line to `buildMux` in `main.go`,
-and a new `<name>_route_test.go` following any existing sibling's shape. **Double-check the literal
-`ProfileSection` string against the chaincode enum, not against the `Hooks` method's own name or
-any prose description** — `ADDITIONAL`'s dispatched method is named `ApproveFamilyDataChange` and
-is called "family/dependents changes" in the epic's own prose, but the only string that is ever a
-real, routable value is `"ADDITIONAL"`; this exact naming gap has already caused a real, caught
-mistake once in this codebase's own history (Story 1.5's code review).
+`pipeline.RouteConfig{ProfileSection: "...", Dispatch: hooks.YourNewHook}` line to `buildMux` in
+`cmd/integrationbridge/main.go`, and a new `<name>_route_test.go` in `internal/pipeline/` following
+any existing sibling's shape. **Double-check the literal `ProfileSection` string against the
+chaincode enum, not against the `Hooks` method's own name or any prose description** —
+`ADDITIONAL`'s dispatched method is named `ApproveFamilyDataChange` and is called "family/dependents
+changes" in the epic's own prose, but the only string that is ever a real, routable value is
+`"ADDITIONAL"`; this exact naming gap has already caused a real, caught mistake once in this
+codebase's own history (Story 1.5's code review).
 
 **No production credential/persistence store exists.** `BRIDGE_API_KEY`/`BRIDGE_COMPANY_ID` are
 compared against one static configured value (no rotation, no per-caller keys); `wiring.go`'s
@@ -142,5 +152,5 @@ scratch. Full detail is always in the relevant backlog row.
 | Re-running `cryptogen` for an already-generated org orphans its issued certs | `cryptogen` is not idempotent — regenerates a fresh CA keypair every run | `NET-7` |
 | A peer crashes with "unexpected Previous block hash" on `tenant-tenant02` | Recurring, structural: a dormant/recreated channel's genesis conflicts with a peer's stale local copy — happened twice (`NET-7`, `QA-4`'s `PT-4`) | see `NET-7`'s backlog addendum; recovery = ledger-volume reset + `netjoin` rejoin, never a channel-join/create against `tenant-tenant02` casually |
 | Caliper's `fabric:2.5`-bound connector can't connect at all | Zero mTLS support in any published `@hyperledger/fabric-gateway`-based connector version; this network mandates client-cert auth | `QA-4` (patched into the sandboxed `qa-tests/performance/node_modules` only) |
-| A stray, untracked binary named `integrationbridge` appears at `integration-bridge/integrationbridge` after running tests | A bare `go build ./...` inside `integration-bridge/` (a single standalone main package at the module root, unlike everything under `write-path-integration/`) writes a real compiled binary there as a side effect — harmless but easy to miss with a plain `git status` | Story 1.6's code review; now in `.gitignore`, but `rm` it if you see it predate that fix locally |
+| A stray, untracked binary named `integrationbridge` appears at `integration-bridge/integrationbridge` after building | Only `go build ./cmd/integrationbridge` (or explicitly building that one package) writes this — since the clean-architecture package split, `integration-bridge/` has two packages (`cmd/integrationbridge` + `internal/pipeline`), so a bare `go build ./...` from the module root no longer has a single main package to default the output name against and produces no stray binary at all. Still `rm` it if you build the `cmd/integrationbridge` package directly and don't need the artifact | Story 1.6's code review; now in `.gitignore`; behavior improved by the later package-split refactor |
 | "directory prefix . does not contain modules listed in go.work" when building `integration-bridge/` | This gotcha does **not** apply here — `integration-bridge/` is its own standalone module (own `go.mod`), never part of `write-path-integration/go.work`; if you see this exact error, you're almost certainly still `cd`-ed into `write-path-integration/` from a previous command | n/a — different module entirely, no fix needed once you `cd integration-bridge` |
