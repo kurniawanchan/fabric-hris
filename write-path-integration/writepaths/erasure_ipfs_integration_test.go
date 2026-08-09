@@ -57,12 +57,18 @@ func TestIntegration_QA2_ErasureLeavesOnChainStateUnchangedAndBreaksOldCiphertex
 	}
 	defer gw.Close()
 
+	// Kept as a local, concrete *ipfsclient.Client (not read back through
+	// hooks.IPFS, which is now DocumentPinner-typed and deliberately omits
+	// FetchAndDecrypt — writepaths' production code never reads a document
+	// back) — mirroring how this same file already keeps a local `gw` for
+	// its Evaluate* calls on the Gateway side.
+	ipfsClient := ipfsclient.NewClient("http://localhost:5001", "http://localhost:5002")
 	hooks := &Hooks{
 		Store:        NewInMemoryOperationalStore(),
 		Keys:         keystore.NewInMemoryEmployeeKeyStore(),
 		Salts:        keystore.NewInMemorySaltStore(),
 		DocumentKeys: keystore.NewInMemoryDocumentKeyStore(),
-		IPFS:         ipfsclient.NewClient("http://localhost:5001", "http://localhost:5002"),
+		IPFS:         ipfsClient,
 		Gateway:      gw,
 		TenantID:     "tenant01",
 	}
@@ -133,7 +139,7 @@ func TestIntegration_QA2_ErasureLeavesOnChainStateUnchangedAndBreaksOldCiphertex
 	if err != nil {
 		t.Fatalf("GetOrCreateDocumentKey (pre-erase): %v", err)
 	}
-	plaintext, err := hooks.IPFS.FetchAndDecrypt(ctx, preEraseDocumentKey, cid)
+	plaintext, err := ipfsClient.FetchAndDecrypt(ctx, preEraseDocumentKey, cid)
 	if err != nil {
 		t.Fatalf("FetchAndDecrypt pre-erasure with the correct KEY_EMPLOYEE unexpectedly failed: %v", err)
 	}
@@ -185,7 +191,7 @@ func TestIntegration_QA2_ErasureLeavesOnChainStateUnchangedAndBreaksOldCiphertex
 	if bytes.Equal(postEraseDocumentKey, preEraseDocumentKey) {
 		t.Fatal("GetOrCreateDocumentKey returned the SAME key after Erase deleted it — DeleteDocumentKey did not actually remove the stored key")
 	}
-	if _, err := hooks.IPFS.FetchAndDecrypt(ctx, postEraseDocumentKey, cid); err == nil {
+	if _, err := ipfsClient.FetchAndDecrypt(ctx, postEraseDocumentKey, cid); err == nil {
 		t.Fatal("FetchAndDecrypt succeeded with a FRESH post-erasure KEY_EMPLOYEE against the OLD ciphertext — erasure basis is BROKEN: the old ciphertext should be permanently unopenable once the key that encrypted it is destroyed")
 	} else {
 		t.Logf("IT-9 confirmed: post-erasure FetchAndDecrypt with a fresh KEY_EMPLOYEE correctly failed to open the old ciphertext: %v", err)

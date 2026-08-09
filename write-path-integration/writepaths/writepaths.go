@@ -29,7 +29,6 @@ import (
 	"sync"
 
 	gatewayclient "gatewayclient"
-	ipfsclient "ipfsclient"
 	keystore "keystore"
 )
 
@@ -98,8 +97,8 @@ type Hooks struct {
 	Keys         keystore.EmployeeKeyStore
 	Salts        keystore.SaltStore
 	DocumentKeys keystore.DocumentKeyStore // KEY_EMPLOYEE (ADR-0019 Domain B'); nil is fine unless a hook call carries a document
-	IPFS         *ipfsclient.Client        // REC-5; nil is fine unless a hook call carries a document
-	Gateway      *gatewayclient.GatewayClient
+	IPFS         DocumentPinner            // REC-5; nil is fine unless a hook call carries a document
+	Gateway      LedgerAnchorer
 	TenantID     string
 
 	// OnPartialFailure is invoked (if non-nil), exactly once, at the point
