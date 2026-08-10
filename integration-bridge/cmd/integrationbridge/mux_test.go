@@ -33,7 +33,7 @@ func stubHooksForMuxTest() *writepaths.Hooks {
 }
 
 func TestBuildMux_AllFiveRoutesRegistered_UnrelatedPathIs404(t *testing.T) {
-	mux := buildMux(stubHooksForMuxTest(), testAuthConfig(), time.Second)
+	mux := buildMux(stubHooksForMuxTest(), nil, testAuthConfig(), time.Second)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
@@ -45,7 +45,7 @@ func TestBuildMux_AllFiveRoutesRegistered_UnrelatedPathIs404(t *testing.T) {
 }
 
 func TestBuildMux_SixthSectionName_Is404(t *testing.T) {
-	mux := buildMux(stubHooksForMuxTest(), testAuthConfig(), time.Second)
+	mux := buildMux(stubHooksForMuxTest(), nil, testAuthConfig(), time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/BOGUS", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
@@ -57,7 +57,7 @@ func TestBuildMux_SixthSectionName_Is404(t *testing.T) {
 }
 
 func TestBuildMux_AllFiveRatifiedRoutesExist(t *testing.T) {
-	mux := buildMux(stubHooksForMuxTest(), testAuthConfig(), time.Second)
+	mux := buildMux(stubHooksForMuxTest(), nil, testAuthConfig(), time.Second)
 
 	for _, section := range []string{"PERSONAL", "EMPLOYMENT", "EDUCATION", "ADDITIONAL", "PAYROLL"} {
 		req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/"+section, strings.NewReader(`{}`))
@@ -82,7 +82,7 @@ func TestBuildMux_PersonalAndPayrollAreIndependentRoutes(t *testing.T) {
 	// instead confirms AC#3's literal claim: both paths are independently
 	// routable and neither 404s the other away, regardless of how many
 	// callers on the other side of this API share one commit path.
-	mux := buildMux(stubHooksForMuxTest(), testAuthConfig(), time.Second)
+	mux := buildMux(stubHooksForMuxTest(), nil, testAuthConfig(), time.Second)
 
 	for _, path := range []string{"/v1/profile-sections/PERSONAL", "/v1/profile-sections/PAYROLL"} {
 		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
@@ -109,7 +109,7 @@ func TestBuildMux_PersonalAndPayrollAreIndependentRoutes(t *testing.T) {
 // Story 1.3's analogous TestRegisterProfileSectionRoute_TransferPath_IsNotRegistered,
 // tracked in deferred-work.md rather than reopened here).
 func TestBuildMux_FamilyPath_IsNotRegistered(t *testing.T) {
-	mux := buildMux(stubHooksForMuxTest(), testAuthConfig(), time.Second)
+	mux := buildMux(stubHooksForMuxTest(), nil, testAuthConfig(), time.Second)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/profile-sections/FAMILY", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
@@ -117,5 +117,23 @@ func TestBuildMux_FamilyPath_IsNotRegistered(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("status code = %d, want 404 -- \"FAMILY\" must never be a registered route path", rec.Code)
+	}
+}
+
+// TestBuildMux_HistoryRouteRegistered proves the read route buildMux adds
+// exists on the assembled mux. The request deliberately carries no auth
+// headers so it fails at [auth] and never reaches cfg.Keys/cfg.Ledger (both
+// nil in stubHooksForMuxTest/the nil historyReader passed above) -- this
+// test is about routing existence, not read behavior (see
+// internal/pipeline/history_route_test.go for that).
+func TestBuildMux_HistoryRouteRegistered(t *testing.T) {
+	mux := buildMux(stubHooksForMuxTest(), nil, testAuthConfig(), time.Second)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/profile-sections/history", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code == http.StatusNotFound {
+		t.Error("GET /v1/profile-sections/history: got 404, want this route to exist")
 	}
 }

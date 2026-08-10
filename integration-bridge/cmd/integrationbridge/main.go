@@ -65,7 +65,7 @@ func (s *shutdownSequence) Close() error {
 // about the whole set, not about any single route in isolation). Every call
 // shares the identical pipeline (AD-5); only ProfileSection and Dispatch
 // vary per route.
-func buildMux(hooks *writepaths.Hooks, authCfg pipeline.AuthConfig, dispatchTimeout time.Duration) *http.ServeMux {
+func buildMux(hooks *writepaths.Hooks, historyReader pipeline.LedgerHistoryReader, authCfg pipeline.AuthConfig, dispatchTimeout time.Duration) *http.ServeMux {
 	mux := http.NewServeMux()
 	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL",
 		pipeline.RouteConfig{ProfileSection: "PERSONAL", Dispatch: hooks.UpdatePersonalData},
@@ -82,6 +82,15 @@ func buildMux(hooks *writepaths.Hooks, authCfg pipeline.AuthConfig, dispatchTime
 	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL",
 		pipeline.RouteConfig{ProfileSection: "PAYROLL", Dispatch: hooks.UpdatePayrollBankAccount},
 		authCfg, hooks.TenantID, dispatchTimeout)
+	// The one read route this bridge exposes -- a caller's own
+	// employeeInternalID resolves to the same on-chain pseudonym its writes
+	// anchored under (see history.go's own doc comment; closes G-34's
+	// caller-facing half). historyReader is the full *gatewayclient.GatewayClient
+	// (never hooks.Gateway, which writepaths deliberately narrows to
+	// LedgerAnchorer with no Evaluate* reads).
+	pipeline.RegisterProfileHistoryRoute(mux, "GET /v1/profile-sections/history",
+		pipeline.HistoryRouteConfig{Keys: hooks.Keys, Ledger: historyReader, TenantID: hooks.TenantID},
+		authCfg)
 	return mux
 }
 
@@ -113,7 +122,7 @@ func run() error {
 
 	authCfg := pipeline.AuthConfig{APIKey: cfg.APIKey, CompanyID: cfg.CompanyID}
 	dispatchTimeout := ResolveDispatchTimeout(os.Getenv)
-	mux := buildMux(hooks, authCfg, dispatchTimeout)
+	mux := buildMux(hooks, gw, authCfg, dispatchTimeout)
 
 	srv := &http.Server{
 		Addr:              ResolveHTTPAddr(os.Getenv),
