@@ -19,6 +19,7 @@ evidence-linked record of what was built, what passed, and what didn't.
 | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) | Bring up the whole stack from scratch — network, chaincode, IPFS cluster, first real write |
 | [`docs/CODEBASE-MAP.md`](docs/CODEBASE-MAP.md) | Where every piece lives, how to extend it, and a troubleshooting table of real defects already found and fixed |
 | [`docs/REPRODUCING-RESULTS.md`](docs/REPRODUCING-RESULTS.md) | Re-run any test suite and regenerate the evaluation numbers yourself |
+| [`docs/CALIPER-IMPLEMENTATION.md`](docs/CALIPER-IMPLEMENTATION.md) | How the Caliper benchmark workspace is built and wired — versions, bind target, the mutual-TLS patch, and its conformance against upstream Caliper |
 
 ## Code
 
