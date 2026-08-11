@@ -29,6 +29,10 @@ npm-debug.log*
 ipfs-cluster/data/
 ipfs-cluster/*/data/
 
+# caliper-dashboard's live CLI tail source (Story 2.2) -- the operator
+# redirects a real Caliper run's stdout here; never a committed artifact
+caliper-run.log
+
 # Note: fabric-network/ has its own nested .gitignore for generated crypto
 # material, channel blocks, chaincode vendor/package artifacts, etc.
 

@@ -1,22 +1,21 @@
 import { broadcast, captureContext } from "../stream.js";
 import { getJsonlLastActivity } from "./rawLatencies.js";
 import { getMetricsLastActivity } from "../poller/nodeHealth.js";
+import { getLogLastActivity } from "./callerLog.js";
 
 const HEARTBEAT_MS = 3000;
 
 /**
  * AD-6: a fixed-interval heartbeat carrying each real source's own
  * last-activity timestamp independently, so the frontend can mute one dead
- * feed without muting the others. `log` stays null until Story 2.2 builds
- * that watcher -- a source that has never run is "no data," not a false
- * staleness signal for a feed this build doesn't have yet.
+ * feed without muting the others.
  */
 function tick(): void {
   broadcast({
     type: "heartbeat",
     context: captureContext(),
     sources: {
-      log: null,
+      log: getLogLastActivity(),
       jsonl: getJsonlLastActivity(),
       metrics: getMetricsLastActivity(),
     },

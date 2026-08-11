@@ -8,6 +8,7 @@ import { topologyRouter } from "./routes/topology.js";
 import { historyRouter } from "./routes/history.js";
 import { streamRouter } from "./stream.js";
 import { startRawLatenciesWatcher } from "./watchers/rawLatencies.js";
+import { startCallerLogWatcher } from "./watchers/callerLog.js";
 import { startHeartbeat } from "./watchers/heartbeat.js";
 import { startNodeHealthPoller } from "./poller/nodeHealth.js";
 
@@ -23,6 +24,7 @@ app.use("/api", streamRouter);
 
 initScenario(defaultScenario());
 startRawLatenciesWatcher();
+startCallerLogWatcher();
 startNodeHealthPoller();
 startHeartbeat();
 
