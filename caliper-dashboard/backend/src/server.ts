@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { initScenario } from "./state.js";
 import { defaultScenario } from "./scenarios.js";
 import { scenarioRouter } from "./routes/scenario.js";
+import { topologyRouter } from "./routes/topology.js";
 import { streamRouter } from "./stream.js";
 import { startRawLatenciesWatcher } from "./watchers/rawLatencies.js";
 import { startHeartbeat } from "./watchers/heartbeat.js";
@@ -14,6 +15,7 @@ const app = express();
 app.use(cors({ origin: /^https?:\/\/(127\.0\.0\.1|localhost):\d+$/ }));
 app.use(express.json());
 app.use("/api", scenarioRouter);
+app.use("/api", topologyRouter);
 app.use("/api", streamRouter);
 
 initScenario(defaultScenario());
