@@ -16,6 +16,16 @@ export async function fetchState(): Promise<DashboardState> {
   return (await res.json()) as DashboardState;
 }
 
+/** FR8: the active scenario's benchconfig YAML, byte-for-byte, as raw text. */
+export async function fetchConfig(): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/config`);
+  if (!res.ok) {
+    const body = (await res.json()) as { error?: string };
+    throw new Error(body.error ?? `request failed: ${res.status}`);
+  }
+  return res.text();
+}
+
 export async function selectScenario(scenario: string): Promise<DashboardState> {
   const res = await fetch(`${API_BASE}/api/scenario`, {
     method: "POST",

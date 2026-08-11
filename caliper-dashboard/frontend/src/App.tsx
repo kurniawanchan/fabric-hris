@@ -4,6 +4,7 @@ import { MetricTile } from "@/components/MetricTile";
 import { TopologyDiagram } from "@/components/TopologyDiagram";
 import { TableList } from "@/components/TableList";
 import { Notifications } from "@/components/Notifications";
+import { ConfigView } from "@/components/ConfigView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDashboardState } from "@/hooks/useDashboardState";
 import { useLiveMetrics } from "@/hooks/useLiveMetrics";
@@ -37,10 +38,9 @@ function DashboardTab() {
 }
 
 /**
- * Story 1.1's chrome (mode indicator, scenario selector) + Story 1.2's
- * Dashboard tab + Story 1.3's Network Profile tab, per EXPERIENCE.md's
- * five-tab Information Architecture. The remaining three tabs (Table List,
- * Notifications, Configuration) land in Epic 2.
+ * The full five-tab shell per EXPERIENCE.md's Information Architecture:
+ * Dashboard + Network Profile (Epic 1), Table List + Notifications +
+ * Configuration (Epic 2).
  */
 export function App() {
   const { scenarios, state, error, changeScenario } = useDashboardState();
@@ -76,6 +76,7 @@ export function App() {
             <TabsTrigger value="network-profile">Network Profile</TabsTrigger>
             <TabsTrigger value="table-list">Table List</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="configuration">Configuration</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard">
             <DashboardTab />
@@ -88,6 +89,9 @@ export function App() {
           </TabsContent>
           <TabsContent value="notifications">
             <Notifications />
+          </TabsContent>
+          <TabsContent value="configuration">
+            {state && <ConfigView scenario={state.scenario} />}
           </TabsContent>
         </Tabs>
       </main>

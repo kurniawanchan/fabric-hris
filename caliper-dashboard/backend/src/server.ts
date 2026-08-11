@@ -6,6 +6,7 @@ import { defaultScenario } from "./scenarios.js";
 import { scenarioRouter } from "./routes/scenario.js";
 import { topologyRouter } from "./routes/topology.js";
 import { historyRouter } from "./routes/history.js";
+import { configRouter } from "./routes/config.js";
 import { streamRouter } from "./stream.js";
 import { startRawLatenciesWatcher } from "./watchers/rawLatencies.js";
 import { startCallerLogWatcher } from "./watchers/callerLog.js";
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use("/api", scenarioRouter);
 app.use("/api", topologyRouter);
 app.use("/api", historyRouter);
+app.use("/api", configRouter);
 app.use("/api", streamRouter);
 
 initScenario(defaultScenario());
