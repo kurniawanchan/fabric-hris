@@ -2,6 +2,7 @@ import { ModeIndicator } from "@/components/ModeIndicator";
 import { ScenarioSelector } from "@/components/ScenarioSelector";
 import { MetricTile } from "@/components/MetricTile";
 import { TopologyDiagram } from "@/components/TopologyDiagram";
+import { TableList } from "@/components/TableList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDashboardState } from "@/hooks/useDashboardState";
 import { useLiveMetrics } from "@/hooks/useLiveMetrics";
@@ -72,12 +73,16 @@ export function App() {
           <TabsList>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="network-profile">Network Profile</TabsTrigger>
+            <TabsTrigger value="table-list">Table List</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard">
             <DashboardTab />
           </TabsContent>
           <TabsContent value="network-profile">
             <TopologyDiagram />
+          </TabsContent>
+          <TabsContent value="table-list">
+            <TableList />
           </TabsContent>
         </Tabs>
       </main>
