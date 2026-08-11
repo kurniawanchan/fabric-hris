@@ -135,12 +135,17 @@ it once:
 ```sh
 docker run -d --name fabric-tools-net \
   --network fabric-network-net \
-  -v "$PWD/../network":/net:ro \
+  -v "$PWD/..":/net:ro \
   -v "$PWD/../chaincode/employeeprofilerecord":/cc:rw \
   hyperledger/fabric-tools:2.5 sh -c "sleep infinity"
 ```
 
-(`/cc` is where the chaincode package tarball for §6 needs to live — see that step.)
+(`/cc` is where the chaincode package tarball for §6 needs to live — see that step. The `/net`
+mount is `$PWD/..`, not `$PWD/../network`: `$PWD` here is already `fabric-network/network/compose`
+per this section's own assumed working directory, and that directory's parent **is**
+`fabric-network/network` — `../network` silently resolves to a nonexistent
+`fabric-network/network/network`, which Docker creates as an empty directory instead of erroring,
+leaving the helper container's `/net` mount empty. Found and fixed 2026-08-11, see `G-40`.)
 
 **If this errors with `container name "/fabric-tools-net" is already in use`**, it already exists
 from a previous session (Docker keeps stopped containers around by name) — check
