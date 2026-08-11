@@ -1,6 +1,8 @@
 import { ModeIndicator } from "@/components/ModeIndicator";
 import { ScenarioSelector } from "@/components/ScenarioSelector";
+import { MetricTile } from "@/components/MetricTile";
 import { useDashboardState } from "@/hooks/useDashboardState";
+import { useLiveMetrics } from "@/hooks/useLiveMetrics";
 
 /**
  * Story 1.1: project + relay foundation. Persistent chrome (mode indicator,
@@ -11,6 +13,13 @@ import { useDashboardState } from "@/hooks/useDashboardState";
  */
 export function App() {
   const { scenarios, state, error, changeScenario } = useDashboardState();
+  const live = useLiveMetrics();
+
+  // AD-5: REST and SSE context must always agree -- once the stream has
+  // reported anything, prefer it; before that first event arrives, fall
+  // back to the initial REST-fetched value.
+  const isLive = live.isLive || (state?.isLive ?? false);
+  const hasData = live.throughput !== null;
 
   return (
     <div className="min-h-svh">
@@ -24,13 +33,30 @@ export function App() {
               onChange={(scenario) => void changeScenario(scenario)}
             />
           )}
-          <ModeIndicator isLive={state?.isLive ?? false} />
+          <ModeIndicator isLive={isLive} />
         </div>
       </header>
 
       <main className="p-6">
-        {error ? (
-          <p className="text-status-down">{error}</p>
+        {error && <p className="mb-4 text-status-down">{error}</p>}
+
+        {hasData ? (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <MetricTile
+              label="Throughput (tx/s)"
+              value={live.throughput}
+              formatValue={(v) => v.toFixed(1)}
+              stale={live.jsonlStale}
+            />
+            <MetricTile
+              label="Latency (ms)"
+              value={live.latency}
+              formatValue={(v) => v.toFixed(1)}
+              stale={live.jsonlStale}
+            />
+            <MetricTile label="Success" value={live.successCount} stale={live.jsonlStale} />
+            <MetricTile label="Failure" value={live.failureCount} stale={live.jsonlStale} />
+          </div>
         ) : (
           <p className="text-muted-foreground">No benchmark running.</p>
         )}
