@@ -8,6 +8,7 @@ import { topologyRouter } from "./routes/topology.js";
 import { streamRouter } from "./stream.js";
 import { startRawLatenciesWatcher } from "./watchers/rawLatencies.js";
 import { startHeartbeat } from "./watchers/heartbeat.js";
+import { startNodeHealthPoller } from "./poller/nodeHealth.js";
 
 const app = express();
 // Backend and frontend are two separate processes (AD-2), both localhost-only
@@ -20,6 +21,7 @@ app.use("/api", streamRouter);
 
 initScenario(defaultScenario());
 startRawLatenciesWatcher();
+startNodeHealthPoller();
 startHeartbeat();
 
 // AD-8: localhost-only binding -- never 0.0.0.0. host is a fixed constant in
