@@ -86,9 +86,9 @@ recorded action items and `epic-1-retro-2026-08-09.md` for the full retrospectiv
 A second, separately-tracked epic set (4 epics, 15 stories — see `_bmad-output/planning-artifacts/`)
 covers the other side of this integration: the HRIS platform's own application code now has a real
 trigger that calls `integration-bridge/`'s existing routes automatically on every profile-section
-write, instead of requiring a manual caller. As of 2026-08-13, 14 of those 15 stories (tf-1.1
-through tf-4.2) are implemented and in review — see `docs/QUICKSTART.md` §12 for the design shape
-and its disclosed open gap (retryable-vs-permanent error classification). What's landed:
+write, instead of requiring a manual caller. As of 2026-08-13, all 15 stories (tf-1.1 through
+tf-4.3) are implemented and in review — see `docs/QUICKSTART.md` §12 for the design shape and its
+disclosed open gap (retryable-vs-permanent error classification). What's landed:
 
 - All five profile-section write actions (not just one) now enqueue the trigger.
 - A per-record pseudonym (`recordIdentity`) so repeating sub-records (family members, education
@@ -101,9 +101,13 @@ and its disclosed open gap (retryable-vs-permanent error classification). What's
   HRIS platform's own dead-lettered jobs) replacing what was previously in-memory or log-only state,
   plus operator console commands to list, inspect, and re-drive a dead-lettered job by its
   correlation ID without losing or duplicating data.
+- Real backlog-depth observability (Datadog StatsD counters on every anchoring attempt/success/
+  dead-letter, plus a gauged dead-letter backlog) and a documented, reviewable alert threshold —
+  absorbing the scope of a never-implemented earlier story (tf-1.6) once that gap was found.
 
-Only story tf-4.3 (a real, production-scale performance benchmark for this end-to-end path) remains
-open, and is expected to close as a disclosed limitation — no dedicated benchmarking hardware is
-available in this environment. Story-level test execution for the HRIS-platform-side stories was
+Story tf-4.3's other half — a benchmark on dedicated, non-shared, non-laptop hardware, replacing
+the disclaimed dev-laptop p95≈26.7s figure — genuinely did not close; no such hardware is available
+in this environment, and this is disclosed rather than papered over with another dev-environment
+number (`grounding-gaps.md` G-41). Story-level test execution for the HRIS-platform-side stories was
 blocked throughout by a pre-existing, confirmed-unrelated defect in that platform's own test
 harness — documented, not silently skipped, in each story's own record.

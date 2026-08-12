@@ -92,7 +92,7 @@ development_status:
   epic-tf-4: in-progress
   tf-4-1-persistent-salt-key-store-for-integration-bridge: review
   tf-4-2-dead-letter-persistence-and-operator-visibility: review
-  tf-4-3-real-production-performance-benchmark-and-backlog-threshold: backlog
+  tf-4-3-real-production-performance-benchmark-and-backlog-threshold: review
   epic-tf-4-retrospective: optional
 
 action_items:
