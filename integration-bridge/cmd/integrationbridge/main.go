@@ -77,7 +77,7 @@ func buildMux(hooks *writepaths.Hooks, historyReader pipeline.LedgerHistoryReade
 		pipeline.RouteConfig{ProfileSection: "EDUCATION", Dispatch: hooks.RecordEducationHistory},
 		authCfg, hooks.TenantID, dispatchTimeout)
 	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/ADDITIONAL",
-		pipeline.RouteConfig{ProfileSection: "ADDITIONAL", Dispatch: hooks.ApproveFamilyDataChange},
+		pipeline.RouteConfig{ProfileSection: "ADDITIONAL", Dispatch: hooks.UpdateAdditionalInfo},
 		authCfg, hooks.TenantID, dispatchTimeout)
 	pipeline.RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL",
 		pipeline.RouteConfig{ProfileSection: "PAYROLL", Dispatch: hooks.UpdatePayrollBankAccount},
@@ -90,6 +90,12 @@ func buildMux(hooks *writepaths.Hooks, historyReader pipeline.LedgerHistoryReade
 	// LedgerAnchorer with no Evaluate* reads).
 	pipeline.RegisterProfileHistoryRoute(mux, "GET /v1/profile-sections/history",
 		pipeline.HistoryRouteConfig{Keys: hooks.Keys, Ledger: historyReader, TenantID: hooks.TenantID},
+		authCfg)
+	// On-demand integrity check (FR-10, Story tf-3.1) -- reuses the exact
+	// same Keys/Salts/Ledger the write and history routes already have,
+	// no new dependency construction.
+	pipeline.RegisterProfileVerifyRoute(mux, "POST /v1/profile-sections/verify",
+		pipeline.VerifyRouteConfig{Keys: hooks.Keys, Salts: hooks.Salts, Ledger: historyReader, TenantID: hooks.TenantID},
 		authCfg)
 	return mux
 }
