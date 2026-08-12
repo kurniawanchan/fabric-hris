@@ -48,6 +48,53 @@ type OperationalStore interface {
 // field for one employee, not just one.
 var AllProfileSections = []string{"PERSONAL", "EMPLOYMENT", "EDUCATION", "ADDITIONAL", "PAYROLL"}
 
+// EmployeeKeyGetter is the one keystore.EmployeeKeyStore method
+// ResolveEmployeeKey/ResolveEmployeeID need — narrowed the same way
+// integration-bridge's own EmployeeKeyResolver (history.go) narrows it, so
+// a caller unit-testing against a stub (e.g. the verify route, Story
+// tf-3.1) never needs to also implement DeleteEmployeeKey.
+// keystore.EmployeeKeyStore satisfies this automatically.
+type EmployeeKeyGetter interface {
+	GetOrCreateEmployeeKey(ctx context.Context, employeeInternalID string) ([]byte, error)
+}
+
+// ResolveEmployeeKey fetches the raw employeeKey_i for one
+// (employeeInternalID, recordIdentity) pair — the exact key-composition
+// rule AD-3 establishes and AD-8 requires every caller to share: an empty
+// recordIdentity resolves identically to employeeInternalID alone (every
+// single-record domain, unchanged since before recordIdentity existed);
+// a non-empty recordIdentity composes a distinct key-space identifier
+// (Family sub-records, Additional Info custom fields, ...).
+func ResolveEmployeeKey(ctx context.Context, keys EmployeeKeyGetter, employeeInternalID, recordIdentity string) ([]byte, error) {
+	keyLookupID := employeeInternalID
+	if recordIdentity != "" {
+		keyLookupID = employeeInternalID + "\x00" + recordIdentity
+	}
+	employeeKey, err := keys.GetOrCreateEmployeeKey(ctx, keyLookupID)
+	if err != nil {
+		return nil, fmt.Errorf("writepaths: fetching employeeKey_i: %w", err)
+	}
+	return employeeKey, nil
+}
+
+// ResolveEmployeeID derives the on-chain pseudonym for one
+// (employeeInternalID, recordIdentity) pair. Exported so
+// integration-bridge's verification route (Story tf-3.1) can resolve the
+// identical pseudonym doAnchor uses, without a second, independently-written
+// derivation (AD-8's "resolve the pseudonym identically to how the write
+// path does").
+func ResolveEmployeeID(ctx context.Context, keys EmployeeKeyGetter, employeeInternalID, recordIdentity string) (string, error) {
+	employeeKey, err := ResolveEmployeeKey(ctx, keys, employeeInternalID, recordIdentity)
+	if err != nil {
+		return "", err
+	}
+	employeeID, err := gatewayclient.ComputeEmployeeID(employeeKey)
+	if err != nil {
+		return "", fmt.Errorf("writepaths: computing EmployeeID: %w", err)
+	}
+	return employeeID, nil
+}
+
 // InMemoryOperationalStore is the mock used by this package's own tests and
 // the live demonstration — never a production store.
 type InMemoryOperationalStore struct {
@@ -171,8 +218,8 @@ func (e *PartialFailureError) Unwrap() error { return e.Err }
 // *PartialFailureError here — see that type's doc comment for why this is
 // always safe to do at this specific call site (SaveSection has already
 // committed by the time any caller reaches this function).
-func (h *Hooks) anchor(ctx context.Context, employeeInternalID, userID, profileSection string, sectionValueJSON []byte, version int, document []byte) ([]byte, error) {
-	result, err := h.doAnchor(ctx, employeeInternalID, userID, profileSection, sectionValueJSON, version, document)
+func (h *Hooks) anchor(ctx context.Context, employeeInternalID, userID, profileSection, recordIdentity string, sectionValueJSON []byte, version int, document []byte) ([]byte, error) {
+	result, err := h.doAnchor(ctx, employeeInternalID, userID, profileSection, recordIdentity, sectionValueJSON, version, document)
 	if err != nil {
 		pfErr := &PartialFailureError{
 			EmployeeInternalID: employeeInternalID,
@@ -202,10 +249,10 @@ func (h *Hooks) anchor(ctx context.Context, employeeInternalID, userID, profileS
 // ipfsclient's own re-encryption test), so this never mutates a prior
 // version's ipfsCIDs in place — it only ever appears on the NEW version
 // written by THIS call.
-func (h *Hooks) doAnchor(ctx context.Context, employeeInternalID, userID, profileSection string, sectionValueJSON []byte, version int, document []byte) ([]byte, error) {
-	employeeKey, err := h.Keys.GetOrCreateEmployeeKey(ctx, employeeInternalID)
+func (h *Hooks) doAnchor(ctx context.Context, employeeInternalID, userID, profileSection, recordIdentity string, sectionValueJSON []byte, version int, document []byte) ([]byte, error) {
+	employeeKey, err := ResolveEmployeeKey(ctx, h.Keys, employeeInternalID, recordIdentity)
 	if err != nil {
-		return nil, fmt.Errorf("writepaths: fetching employeeKey_i: %w", err)
+		return nil, err
 	}
 	employeeID, err := gatewayclient.ComputeEmployeeID(employeeKey)
 	if err != nil {
@@ -256,47 +303,66 @@ func (h *Hooks) doAnchor(ctx context.Context, employeeInternalID, userID, profil
 // (data-model.md §4). document is the OPTIONAL supporting document for this
 // change (nil/empty = none) — see anchor's own doc comment for REC-5's
 // encrypt-before-pin handling.
-func (h *Hooks) UpdatePersonalData(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+func (h *Hooks) UpdatePersonalData(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 	version, err := h.Store.SaveSection(ctx, employeeInternalID, "PERSONAL", newValue)
 	if err != nil {
 		return nil, fmt.Errorf("writepaths: saving PERSONAL to operational store: %w", err)
 	}
-	return h.anchor(ctx, employeeInternalID, userID, "PERSONAL", newValue, version, document)
+	return h.anchor(ctx, employeeInternalID, userID, "PERSONAL", recordIdentity, newValue, version, document)
 }
 
 // ApproveEmploymentTransfer — the transfer/mutation approval action.
-func (h *Hooks) ApproveEmploymentTransfer(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+func (h *Hooks) ApproveEmploymentTransfer(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 	version, err := h.Store.SaveSection(ctx, employeeInternalID, "EMPLOYMENT", newValue)
 	if err != nil {
 		return nil, fmt.Errorf("writepaths: saving EMPLOYMENT to operational store: %w", err)
 	}
-	return h.anchor(ctx, employeeInternalID, userID, "EMPLOYMENT", newValue, version, document)
+	return h.anchor(ctx, employeeInternalID, userID, "EMPLOYMENT", recordIdentity, newValue, version, document)
 }
 
 // RecordEducationHistory — the formal/informal education-history write action.
-func (h *Hooks) RecordEducationHistory(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+func (h *Hooks) RecordEducationHistory(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 	version, err := h.Store.SaveSection(ctx, employeeInternalID, "EDUCATION", newValue)
 	if err != nil {
 		return nil, fmt.Errorf("writepaths: saving EDUCATION to operational store: %w", err)
 	}
-	return h.anchor(ctx, employeeInternalID, userID, "EDUCATION", newValue, version, document)
+	return h.anchor(ctx, employeeInternalID, userID, "EDUCATION", recordIdentity, newValue, version, document)
 }
 
 // ApproveFamilyDataChange — the family-data (marital status / dependents)
-// change-approval workflow (the ADDITIONAL section).
-func (h *Hooks) ApproveFamilyDataChange(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+// change-approval workflow. NOTE: no longer registered as the ADDITIONAL
+// route's dispatch target (Story tf-2.4 repointed it to UpdateAdditionalInfo
+// below, since this method's own name/behavior is genuinely Family data,
+// not Additional Info custom fields — Family anchors under PERSONAL as of
+// Story tf-2.1). Left in place, unreferenced by any route, rather than
+// deleted -- removing dead code is a separate cleanup decision.
+func (h *Hooks) ApproveFamilyDataChange(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 	version, err := h.Store.SaveSection(ctx, employeeInternalID, "ADDITIONAL", newValue)
 	if err != nil {
 		return nil, fmt.Errorf("writepaths: saving ADDITIONAL to operational store: %w", err)
 	}
-	return h.anchor(ctx, employeeInternalID, userID, "ADDITIONAL", newValue, version, document)
+	return h.anchor(ctx, employeeInternalID, userID, "ADDITIONAL", recordIdentity, newValue, version, document)
+}
+
+// UpdateAdditionalInfo — the real Additional Info custom-field write action
+// (Story tf-2.4). recordIdentity is expected to be the custom field's own
+// customFieldID, so each custom field chains independently under one
+// employee (AD-3) -- the caller (integration-bridge) is responsible for
+// supplying it; this method does not validate its presence, consistent
+// with recordIdentity being optional at the type level everywhere else.
+func (h *Hooks) UpdateAdditionalInfo(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
+	version, err := h.Store.SaveSection(ctx, employeeInternalID, "ADDITIONAL", newValue)
+	if err != nil {
+		return nil, fmt.Errorf("writepaths: saving ADDITIONAL to operational store: %w", err)
+	}
+	return h.anchor(ctx, employeeInternalID, userID, "ADDITIONAL", recordIdentity, newValue, version, document)
 }
 
 // UpdatePayrollBankAccount — the payroll/bank-account update action.
-func (h *Hooks) UpdatePayrollBankAccount(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+func (h *Hooks) UpdatePayrollBankAccount(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 	version, err := h.Store.SaveSection(ctx, employeeInternalID, "PAYROLL", newValue)
 	if err != nil {
 		return nil, fmt.Errorf("writepaths: saving PAYROLL to operational store: %w", err)
 	}
-	return h.anchor(ctx, employeeInternalID, userID, "PAYROLL", newValue, version, document)
+	return h.anchor(ctx, employeeInternalID, userID, "PAYROLL", recordIdentity, newValue, version, document)
 }

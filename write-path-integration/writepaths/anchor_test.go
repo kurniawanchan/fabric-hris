@@ -154,7 +154,7 @@ func TestDoAnchor_HappyPath_NoDocument(t *testing.T) {
 	ledger.result = []byte(`{"recordID":"fake-record-1"}`)
 
 	ctx := context.Background()
-	result, err := h.UpdatePersonalData(ctx, "emp-happy-nodoc", "user-1", []byte(`{"fullName":"No Document"}`), nil)
+	result, err := h.UpdatePersonalData(ctx, "emp-happy-nodoc", "user-1", "", []byte(`{"fullName":"No Document"}`), nil)
 	if err != nil {
 		t.Fatalf("UpdatePersonalData: unexpected error: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestDoAnchor_HappyPath_WithDocument(t *testing.T) {
 
 	ctx := context.Background()
 	document := []byte("a generic supporting document, never written in plaintext to IPFS")
-	if _, err := h.UpdatePersonalData(ctx, "emp-happy-doc", "user-1", []byte(`{"fullName":"With Document"}`), document); err != nil {
+	if _, err := h.UpdatePersonalData(ctx, "emp-happy-doc", "user-1", "", []byte(`{"fullName":"With Document"}`), document); err != nil {
 		t.Fatalf("UpdatePersonalData: unexpected error: %v", err)
 	}
 
@@ -234,7 +234,7 @@ func TestDoAnchor_BuildArgsVectorIsCorrectAndOnlyPrevHashVaries(t *testing.T) {
 	userID := "user-vector"
 	sectionValue := []byte(`{"fullName":"Vector Check","address":"Generic City"}`)
 
-	if _, err := h.UpdatePersonalData(ctx, employeeInternalID, userID, sectionValue, nil); err != nil {
+	if _, err := h.UpdatePersonalData(ctx, employeeInternalID, userID, "", sectionValue, nil); err != nil {
 		t.Fatalf("UpdatePersonalData: unexpected error: %v", err)
 	}
 	if ledger.buildArgs == nil {
@@ -305,7 +305,7 @@ func TestDoAnchor_BuildArgsVectorIsCorrectAndOnlyPrevHashVaries(t *testing.T) {
 // across all five write-path hooks — each must dispatch its own,
 // distinct profileSection value.
 func TestDoAnchor_AllFiveHooksSubmitTheirOwnProfileSection(t *testing.T) {
-	type hookFunc func(h *Hooks, ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error)
+	type hookFunc func(h *Hooks, ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error)
 
 	tests := []struct {
 		name    string
@@ -324,7 +324,7 @@ func TestDoAnchor_AllFiveHooksSubmitTheirOwnProfileSection(t *testing.T) {
 			h, ledger, _ := newTestHooksAndFakes()
 			ledger.result = []byte(`{"recordID":"fake-record"}`)
 
-			if _, err := tt.call(h, context.Background(), "emp-"+tt.name, "user-1", []byte(`{"x":1}`), nil); err != nil {
+			if _, err := tt.call(h, context.Background(), "emp-"+tt.name, "user-1", "", []byte(`{"x":1}`), nil); err != nil {
 				t.Fatalf("%s: unexpected error: %v", tt.name, err)
 			}
 			if ledger.calls != 1 {
@@ -408,7 +408,7 @@ func TestDoAnchor_EachFailurePointProducesPartialFailureError(t *testing.T) {
 				document = []byte("a supporting document")
 			}
 
-			_, err := h.UpdatePersonalData(context.Background(), "emp-partial-failure", "user-1", []byte(`{"x":1}`), document)
+			_, err := h.UpdatePersonalData(context.Background(), "emp-partial-failure", "user-1", "", []byte(`{"x":1}`), document)
 			if err == nil {
 				t.Fatal("expected an error, got nil")
 			}
@@ -453,7 +453,7 @@ func TestDoAnchor_SaveSectionErrorDoesNotProducePartialFailure(t *testing.T) {
 	var onPartialFailureCalls int
 	h.OnPartialFailure = func(context.Context, string, string, int, error) { onPartialFailureCalls++ }
 
-	_, err := h.UpdatePersonalData(context.Background(), "emp-save-failure", "user-1", []byte(`{"x":1}`), nil)
+	_, err := h.UpdatePersonalData(context.Background(), "emp-save-failure", "user-1", "", []byte(`{"x":1}`), nil)
 	if err == nil {
 		t.Fatal("expected an error, got nil")
 	}
@@ -484,11 +484,76 @@ func TestDoAnchor_OnPartialFailureNilSafe(t *testing.T) {
 	ledger.err = errors.New("boom: gateway unreachable")
 	// OnPartialFailure deliberately left nil.
 
-	_, err := h.UpdatePersonalData(context.Background(), "emp-nil-safe", "user-1", []byte(`{"x":1}`), nil)
+	_, err := h.UpdatePersonalData(context.Background(), "emp-nil-safe", "user-1", "", []byte(`{"x":1}`), nil)
 	// Reaching this line without a panic is itself the assertion this test
 	// exists to make.
 	var pfErr *PartialFailureError
 	if !errors.As(err, &pfErr) {
 		t.Fatalf("errors.As(err, *PartialFailureError) failed; got %T: %v", err, err)
+	}
+}
+
+// ---- recordIdentity tests (Story tf-2.0, AD-3's per-record pseudonym
+// guarantee) ----
+
+// TestAnchor_EmptyRecordIdentity_MatchesPreExistingSingleRecordPseudonym is
+// the regression safety net for Epic 1 (already shipped) and every existing
+// Hooks method: calling anchor() with recordIdentity="" must resolve the
+// identical pseudonym a caller passing no recordIdentity at all would get —
+// i.e. this story must not change behavior for any of the five existing
+// Hooks methods, all of which pass "" today.
+func TestAnchor_EmptyRecordIdentity_MatchesPreExistingSingleRecordPseudonym(t *testing.T) {
+	h, ledger, _ := newTestHooksAndFakes()
+	ledger.result = []byte(`{"recordID":"fake-record-empty-recordidentity"}`)
+
+	ctx := context.Background()
+	if _, err := h.anchor(ctx, "emp-regression", "user-1", "PERSONAL", "", []byte(`{"x":1}`), 1, nil); err != nil {
+		t.Fatalf("anchor: unexpected error: %v", err)
+	}
+	firstEmployeeID := ledger.employeeID
+
+	// A second call with the same employeeInternalID and an explicitly empty
+	// recordIdentity again must resolve to the exact same pseudonym — proving
+	// the "" path is deterministic, not just "didn't error."
+	if _, err := h.anchor(ctx, "emp-regression", "user-1", "PERSONAL", "", []byte(`{"x":2}`), 2, nil); err != nil {
+		t.Fatalf("anchor (second call): unexpected error: %v", err)
+	}
+	if ledger.employeeID != firstEmployeeID {
+		t.Errorf("employeeID changed across two recordIdentity=\"\" calls for the same employeeInternalID: got %q then %q, want identical", firstEmployeeID, ledger.employeeID)
+	}
+}
+
+// TestAnchor_DifferentRecordIdentities_ProduceDifferentPseudonyms asserts
+// AD-3's actual guarantee directly: two different recordIdentity values for
+// the same employeeInternalID (e.g. two different family members under the
+// same employee) must chain under two DIFFERENT on-chain pseudonyms.
+func TestAnchor_DifferentRecordIdentities_ProduceDifferentPseudonyms(t *testing.T) {
+	h, ledger, _ := newTestHooksAndFakes()
+	ctx := context.Background()
+
+	ledger.result = []byte(`{"recordID":"fake-record-member-1"}`)
+	if _, err := h.anchor(ctx, "emp-family", "user-1", "PERSONAL", "family-member-1", []byte(`{"fullName":"Member One"}`), 1, nil); err != nil {
+		t.Fatalf("anchor (family-member-1): unexpected error: %v", err)
+	}
+	employeeIDMember1 := ledger.employeeID
+
+	ledger.result = []byte(`{"recordID":"fake-record-member-2"}`)
+	if _, err := h.anchor(ctx, "emp-family", "user-1", "PERSONAL", "family-member-2", []byte(`{"fullName":"Member Two"}`), 1, nil); err != nil {
+		t.Fatalf("anchor (family-member-2): unexpected error: %v", err)
+	}
+	employeeIDMember2 := ledger.employeeID
+
+	if employeeIDMember1 == employeeIDMember2 {
+		t.Errorf("two different recordIdentity values for the same employeeInternalID produced the SAME pseudonym (%q) — AD-3's per-record chain independence is not held", employeeIDMember1)
+	}
+
+	// Same employeeInternalID + same recordIdentity, called again, must
+	// still resolve back to member 1's pseudonym — not drift on repeat calls.
+	ledger.result = []byte(`{"recordID":"fake-record-member-1-again"}`)
+	if _, err := h.anchor(ctx, "emp-family", "user-1", "PERSONAL", "family-member-1", []byte(`{"fullName":"Member One Updated"}`), 2, nil); err != nil {
+		t.Fatalf("anchor (family-member-1, second write): unexpected error: %v", err)
+	}
+	if ledger.employeeID != employeeIDMember1 {
+		t.Errorf("employeeID for recordIdentity=family-member-1 changed across two writes: got %q then %q, want identical", employeeIDMember1, ledger.employeeID)
 	}
 }
