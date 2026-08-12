@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
+	"path/filepath"
 
 	gatewayclient "gatewayclient"
 	ipfsclient "ipfsclient"
@@ -21,16 +23,13 @@ type newGatewayClientFunc func(peerEndpoint, tlsServerNameOverride, tlsCACertPEM
 // latter directly to call Close() on shutdown). Called exactly once, from
 // main(), before the HTTP listener starts (AD-2).
 //
-// PLACEHOLDER STORES: Store/Keys/Salts/DocumentKeys are wired to the
-// InMemory* implementations — the ONLY implementations of these interfaces
-// that exist anywhere in this codebase today. Their own doc comments
-// (writepaths.InMemoryOperationalStore, keystore.InMemory{Salt,DocumentKey,
-// EmployeeKey}Store) call them test mocks with no persistence. Every process
-// restart silently loses every salt and employeeKey_i ever created. This is
-// correct and sufficient for Story 1.1's own ACs (compile, one-time
-// construction, shutdown — nothing about surviving a restart), but is NOT
-// production-ready. See the story's Open Questions before any real
-// deployment: a persistent store is unbuilt work, not yet anyone's story.
+// PERSISTENT STORES (Story tf-4.1): Keys/Salts/DocumentKeys are wired to
+// the AES-256-GCM-encrypted file implementations (keystore.File*Store) —
+// a process restart no longer loses salts/employeeKey_i/KEY_EMPLOYEE.
+// Store (the operational-value cache, distinct from these three secret
+// stores) remains writepaths.NewInMemoryOperationalStore() — out of this
+// story's scope, since it holds no secret key material, only a copy of
+// data the real HRIS DB is the actual system of record for.
 //
 // IPFS is a real *ipfsclient.Client as of Story 1.2 (Story 1.1 left it nil,
 // correctly, since no route existed yet to carry a document). doAnchor
@@ -48,11 +47,29 @@ func buildHooks(cfg Config, newGW newGatewayClientFunc) (*writepaths.Hooks, *gat
 		return nil, nil, fmt.Errorf("integrationbridge: constructing GatewayClient: %w", err)
 	}
 
+	encryptionKey, err := hex.DecodeString(cfg.KeystoreEncryptionKeyHex)
+	if err != nil {
+		return nil, nil, fmt.Errorf("integrationbridge: BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX is not valid hex: %w", err)
+	}
+
+	employeeKeys, err := keystore.NewFileEmployeeKeyStore(filepath.Join(cfg.KeystoreDir, "employee-keys.enc"), encryptionKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("integrationbridge: constructing employee key store: %w", err)
+	}
+	salts, err := keystore.NewFileSaltStore(filepath.Join(cfg.KeystoreDir, "salts.enc"), encryptionKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("integrationbridge: constructing salt store: %w", err)
+	}
+	documentKeys, err := keystore.NewFileDocumentKeyStore(filepath.Join(cfg.KeystoreDir, "document-keys.enc"), encryptionKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("integrationbridge: constructing document key store: %w", err)
+	}
+
 	hooks := &writepaths.Hooks{
 		Store:        writepaths.NewInMemoryOperationalStore(),
-		Keys:         keystore.NewInMemoryEmployeeKeyStore(),
-		Salts:        keystore.NewInMemorySaltStore(),
-		DocumentKeys: keystore.NewInMemoryDocumentKeyStore(),
+		Keys:         employeeKeys,
+		Salts:        salts,
+		DocumentKeys: documentKeys,
 		IPFS:         ipfsclient.NewClient(cfg.IPFSPrimaryAPI, cfg.IPFSReplicaAPI),
 		Gateway:      gw,
 		TenantID:     cfg.TenantID,

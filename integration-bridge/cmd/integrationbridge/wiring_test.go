@@ -9,19 +9,21 @@ import (
 
 func TestBuildHooks_ConstructsGatewayClientExactlyOnce(t *testing.T) {
 	cfg := Config{
-		PeerEndpoint:      "localhost:7051",
-		TLSServerName:     "peer0.org1",
-		TLSCACertPath:     "/tls/ca.pem",
-		ClientTLSCertPath: "/tls/client.crt",
-		ClientTLSKeyPath:  "/tls/client.key",
-		MSPID:             "Org1MSP",
-		SignCertPath:      "/msp/signcerts/Admin.pem",
-		SignKeyPath:       "/msp/keystore/priv_sk",
-		ChannelName:       "tenant-tenant01",
-		ChaincodeName:     "employeeprofilerecord",
-		TenantID:          "tenant01",
-		IPFSPrimaryAPI:    "127.0.0.1:5001",
-		IPFSReplicaAPI:    "127.0.0.1:5002",
+		PeerEndpoint:             "localhost:7051",
+		TLSServerName:            "peer0.org1",
+		TLSCACertPath:            "/tls/ca.pem",
+		ClientTLSCertPath:        "/tls/client.crt",
+		ClientTLSKeyPath:         "/tls/client.key",
+		MSPID:                    "Org1MSP",
+		SignCertPath:             "/msp/signcerts/Admin.pem",
+		SignKeyPath:              "/msp/keystore/priv_sk",
+		ChannelName:              "tenant-tenant01",
+		ChaincodeName:            "employeeprofilerecord",
+		TenantID:                 "tenant01",
+		IPFSPrimaryAPI:           "127.0.0.1:5001",
+		IPFSReplicaAPI:           "127.0.0.1:5002",
+		KeystoreDir:              t.TempDir(),
+		KeystoreEncryptionKeyHex: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 	}
 
 	callCount := 0

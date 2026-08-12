@@ -8,21 +8,23 @@ import (
 
 func fakeEnvAllSet() map[string]string {
 	return map[string]string{
-		"BRIDGE_PEER_ENDPOINT":        "localhost:7051",
-		"BRIDGE_TLS_SERVER_NAME":      "peer0.org1",
-		"BRIDGE_TLS_CA_CERT_PATH":     "/tls/ca.pem",
-		"BRIDGE_CLIENT_TLS_CERT_PATH": "/tls/client.crt",
-		"BRIDGE_CLIENT_TLS_KEY_PATH":  "/tls/client.key",
-		"BRIDGE_MSP_ID":               "Org1MSP",
-		"BRIDGE_SIGN_CERT_PATH":       "/msp/signcerts/Admin.pem",
-		"BRIDGE_SIGN_KEY_PATH":        "/msp/keystore/priv_sk",
-		"BRIDGE_CHANNEL_NAME":         "tenant-tenant01",
-		"BRIDGE_CHAINCODE_NAME":       "employeeprofilerecord",
-		"BRIDGE_TENANT_ID":            "tenant01",
-		"BRIDGE_IPFS_PRIMARY_API":     "127.0.0.1:5001",
-		"BRIDGE_IPFS_REPLICA_API":     "127.0.0.1:5002",
-		"BRIDGE_API_KEY":              "secret-key",
-		"BRIDGE_COMPANY_ID":           "tenant01",
+		"BRIDGE_PEER_ENDPOINT":               "localhost:7051",
+		"BRIDGE_TLS_SERVER_NAME":             "peer0.org1",
+		"BRIDGE_TLS_CA_CERT_PATH":            "/tls/ca.pem",
+		"BRIDGE_CLIENT_TLS_CERT_PATH":        "/tls/client.crt",
+		"BRIDGE_CLIENT_TLS_KEY_PATH":         "/tls/client.key",
+		"BRIDGE_MSP_ID":                      "Org1MSP",
+		"BRIDGE_SIGN_CERT_PATH":              "/msp/signcerts/Admin.pem",
+		"BRIDGE_SIGN_KEY_PATH":               "/msp/keystore/priv_sk",
+		"BRIDGE_CHANNEL_NAME":                "tenant-tenant01",
+		"BRIDGE_CHAINCODE_NAME":              "employeeprofilerecord",
+		"BRIDGE_TENANT_ID":                   "tenant01",
+		"BRIDGE_IPFS_PRIMARY_API":            "127.0.0.1:5001",
+		"BRIDGE_IPFS_REPLICA_API":            "127.0.0.1:5002",
+		"BRIDGE_API_KEY":                     "secret-key",
+		"BRIDGE_COMPANY_ID":                  "tenant01",
+		"BRIDGE_KEYSTORE_DIR":                "/var/lib/integrationbridge/keystore",
+		"BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 	}
 }
 
@@ -81,6 +83,8 @@ func TestLoadConfig_AllVarsUnset_ListsEveryMissingVar(t *testing.T) {
 		"BRIDGE_IPFS_REPLICA_API",
 		"BRIDGE_API_KEY",
 		"BRIDGE_COMPANY_ID",
+		"BRIDGE_KEYSTORE_DIR",
+		"BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("LoadConfig() error %q does not mention missing var %q", err.Error(), want)

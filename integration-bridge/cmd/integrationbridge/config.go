@@ -29,6 +29,14 @@ type Config struct {
 	IPFSReplicaAPI    string
 	APIKey            string
 	CompanyID         string
+	// KeystoreDir and KeystoreEncryptionKeyHex are Story tf-4.1's addition:
+	// where the persistent (AES-256-GCM-encrypted file) Keys/Salts/
+	// DocumentKeys stores live, and the hex-encoded 32-byte key that
+	// encrypts them. Required, like every other Config field -- an
+	// operator running this bridge in any real deployment must decide
+	// both explicitly; there is no safe default for either.
+	KeystoreDir              string
+	KeystoreEncryptionKeyHex string
 }
 
 // LoadConfig reads every required value via getenv (injected so tests never
@@ -46,21 +54,23 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	}
 
 	cfg := Config{
-		PeerEndpoint:      get("BRIDGE_PEER_ENDPOINT"),
-		TLSServerName:     get("BRIDGE_TLS_SERVER_NAME"),
-		TLSCACertPath:     get("BRIDGE_TLS_CA_CERT_PATH"),
-		ClientTLSCertPath: get("BRIDGE_CLIENT_TLS_CERT_PATH"),
-		ClientTLSKeyPath:  get("BRIDGE_CLIENT_TLS_KEY_PATH"),
-		MSPID:             get("BRIDGE_MSP_ID"),
-		SignCertPath:      get("BRIDGE_SIGN_CERT_PATH"),
-		SignKeyPath:       get("BRIDGE_SIGN_KEY_PATH"),
-		ChannelName:       get("BRIDGE_CHANNEL_NAME"),
-		ChaincodeName:     get("BRIDGE_CHAINCODE_NAME"),
-		TenantID:          get("BRIDGE_TENANT_ID"),
-		IPFSPrimaryAPI:    get("BRIDGE_IPFS_PRIMARY_API"),
-		IPFSReplicaAPI:    get("BRIDGE_IPFS_REPLICA_API"),
-		APIKey:            get("BRIDGE_API_KEY"),
-		CompanyID:         get("BRIDGE_COMPANY_ID"),
+		PeerEndpoint:             get("BRIDGE_PEER_ENDPOINT"),
+		TLSServerName:            get("BRIDGE_TLS_SERVER_NAME"),
+		TLSCACertPath:            get("BRIDGE_TLS_CA_CERT_PATH"),
+		ClientTLSCertPath:        get("BRIDGE_CLIENT_TLS_CERT_PATH"),
+		ClientTLSKeyPath:         get("BRIDGE_CLIENT_TLS_KEY_PATH"),
+		MSPID:                    get("BRIDGE_MSP_ID"),
+		SignCertPath:             get("BRIDGE_SIGN_CERT_PATH"),
+		SignKeyPath:              get("BRIDGE_SIGN_KEY_PATH"),
+		ChannelName:              get("BRIDGE_CHANNEL_NAME"),
+		ChaincodeName:            get("BRIDGE_CHAINCODE_NAME"),
+		TenantID:                 get("BRIDGE_TENANT_ID"),
+		IPFSPrimaryAPI:           get("BRIDGE_IPFS_PRIMARY_API"),
+		IPFSReplicaAPI:           get("BRIDGE_IPFS_REPLICA_API"),
+		APIKey:                   get("BRIDGE_API_KEY"),
+		CompanyID:                get("BRIDGE_COMPANY_ID"),
+		KeystoreDir:              get("BRIDGE_KEYSTORE_DIR"),
+		KeystoreEncryptionKeyHex: get("BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX"),
 	}
 
 	if len(missing) > 0 {
