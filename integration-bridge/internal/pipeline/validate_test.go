@@ -16,7 +16,7 @@ func newValidateRequest(t *testing.T, body string) *http.Request {
 
 // callValidateRequest wraps validateRequest with a fresh httptest.NewRecorder
 // as the ResponseWriter every call site needs for http.MaxBytesReader.
-func callValidateRequest(t *testing.T, req *http.Request) (employeeInternalID, userID string, newValue, document []byte, err error) {
+func callValidateRequest(t *testing.T, req *http.Request) (employeeInternalID, userID string, newValue, document []byte, recordIdentity string, err error) {
 	t.Helper()
 	return validateRequest(httptest.NewRecorder(), req)
 }
@@ -24,7 +24,7 @@ func callValidateRequest(t *testing.T, req *http.Request) (employeeInternalID, u
 func TestValidateRequest_ValidEnvelope_Succeeds(t *testing.T) {
 	req := newValidateRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"fullName":"Test Employee"}}`)
 
-	employeeInternalID, userID, newValue, document, err := callValidateRequest(t, req)
+	employeeInternalID, userID, newValue, document, _, err := callValidateRequest(t, req)
 	if err != nil {
 		t.Fatalf("validateRequest() unexpected error: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestValidateRequest_LargeInteger_PreservedByteForByte(t *testing.T) {
 	body := `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"bankAccountNumber":` + largeInt + `}}`
 	req := newValidateRequest(t, body)
 
-	_, _, newValue, _, err := callValidateRequest(t, req)
+	_, _, newValue, _, _, err := callValidateRequest(t, req)
 	if err != nil {
 		t.Fatalf("validateRequest() unexpected error: %v", err)
 	}
@@ -64,28 +64,28 @@ func TestValidateRequest_LargeInteger_PreservedByteForByte(t *testing.T) {
 func TestValidateRequest_MissingEmployeeInternalID_Rejected(t *testing.T) {
 	req := newValidateRequest(t, `{"userID":"user-1","newValue":{}}`)
 
-	_, _, _, _, err := callValidateRequest(t, req)
+	_, _, _, _, _, err := callValidateRequest(t, req)
 	assertValidationError(t, err)
 }
 
 func TestValidateRequest_MissingUserID_Rejected(t *testing.T) {
 	req := newValidateRequest(t, `{"employeeInternalID":"emp-1","newValue":{}}`)
 
-	_, _, _, _, err := callValidateRequest(t, req)
+	_, _, _, _, _, err := callValidateRequest(t, req)
 	assertValidationError(t, err)
 }
 
 func TestValidateRequest_MissingNewValue_Rejected(t *testing.T) {
 	req := newValidateRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1"}`)
 
-	_, _, _, _, err := callValidateRequest(t, req)
+	_, _, _, _, _, err := callValidateRequest(t, req)
 	assertValidationError(t, err)
 }
 
 func TestValidateRequest_InvalidJSON_Rejected(t *testing.T) {
 	req := newValidateRequest(t, `{not valid json`)
 
-	_, _, _, _, err := callValidateRequest(t, req)
+	_, _, _, _, _, err := callValidateRequest(t, req)
 	assertValidationError(t, err)
 }
 
@@ -94,7 +94,7 @@ func TestValidateRequest_ValidDocument_DecodedCorrectly(t *testing.T) {
 	encoded := base64.StdEncoding.EncodeToString(want)
 	req := newValidateRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{},"document":"`+encoded+`"}`)
 
-	_, _, _, document, err := callValidateRequest(t, req)
+	_, _, _, document, _, err := callValidateRequest(t, req)
 	if err != nil {
 		t.Fatalf("validateRequest() unexpected error: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestValidateRequest_ValidDocument_DecodedCorrectly(t *testing.T) {
 func TestValidateRequest_InvalidDocumentBase64_Rejected(t *testing.T) {
 	req := newValidateRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{},"document":"not-valid-base64!!!"}`)
 
-	_, _, _, _, err := callValidateRequest(t, req)
+	_, _, _, _, _, err := callValidateRequest(t, req)
 	assertValidationError(t, err)
 }
 
@@ -117,7 +117,7 @@ func TestValidateRequest_InvalidDocumentBase64_Rejected(t *testing.T) {
 func TestValidateRequest_PaddedIdentifiers_TrimmedBeforeReturn(t *testing.T) {
 	req := newValidateRequest(t, `{"employeeInternalID":"  emp-1  ","userID":"  user-1  ","newValue":{}}`)
 
-	employeeInternalID, userID, _, _, err := callValidateRequest(t, req)
+	employeeInternalID, userID, _, _, _, err := callValidateRequest(t, req)
 	if err != nil {
 		t.Fatalf("validateRequest() unexpected error: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestValidateRequest_PaddedIdentifiers_TrimmedBeforeReturn(t *testing.T) {
 func TestValidateRequest_NullNewValue_Rejected(t *testing.T) {
 	req := newValidateRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":null}`)
 
-	_, _, _, _, err := callValidateRequest(t, req)
+	_, _, _, _, _, err := callValidateRequest(t, req)
 	assertValidationError(t, err)
 }
 
@@ -147,7 +147,7 @@ func TestValidateRequest_NonObjectNewValue_Rejected(t *testing.T) {
 	for _, tc := range []string{`"a string"`, `42`, `[1,2,3]`, `true`} {
 		req := newValidateRequest(t, `{"employeeInternalID":"emp-1","userID":"user-1","newValue":`+tc+`}`)
 
-		_, _, _, _, err := callValidateRequest(t, req)
+		_, _, _, _, _, err := callValidateRequest(t, req)
 		if err == nil {
 			t.Errorf("newValue=%s: got nil error, want rejection -- newValue must be a JSON object", tc)
 			continue
@@ -164,7 +164,7 @@ func TestValidateRequest_BodyExceedsLimit_Rejected(t *testing.T) {
 	body := `{"employeeInternalID":"emp-1","userID":"user-1","newValue":{},"document":"` + oversizedDocument + `"}`
 	req := newValidateRequest(t, body)
 
-	_, _, _, _, err := callValidateRequest(t, req)
+	_, _, _, _, _, err := callValidateRequest(t, req)
 	if err == nil {
 		t.Fatal("validateRequest() got nil error for an oversized body, want rejection")
 	}

@@ -26,7 +26,7 @@ func TestRegisterProfileSectionRoute_AdditionalRoute_DispatchesAndReturnsCommitt
 	var gotNewValue []byte
 	route := RouteConfig{
 		ProfileSection: "ADDITIONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
 			gotUserID = userID
 			gotNewValue = newValue
@@ -71,7 +71,7 @@ func TestRegisterProfileSectionRoute_AdditionalRoute_AuthFailure_NeverCallsDispa
 	dispatchCalled := false
 	route := RouteConfig{
 		ProfileSection: "ADDITIONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
 			return nil, nil
 		},

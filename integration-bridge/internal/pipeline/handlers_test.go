@@ -34,7 +34,7 @@ func TestRegisterProfileSectionRoute_ValidRequest_DispatchesAndReturnsCommitted(
 	var gotNewValue []byte
 	route := RouteConfig{
 		ProfileSection: "PERSONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
 			gotUserID = userID
 			gotNewValue = newValue
@@ -73,7 +73,7 @@ func TestRegisterProfileSectionRoute_AuthFailure_NeverCallsDispatch(t *testing.T
 	dispatchCalled := false
 	route := RouteConfig{
 		ProfileSection: "PERSONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
 			return nil, nil
 		},
@@ -104,7 +104,7 @@ func TestRegisterProfileSectionRoute_ValidateFailure_NeverCallsDispatch(t *testi
 	dispatchCalled := false
 	route := RouteConfig{
 		ProfileSection: "PERSONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
 			return nil, nil
 		},
@@ -134,7 +134,7 @@ func TestRegisterProfileSectionRoute_ValidateFailure_NeverCallsDispatch(t *testi
 func TestRegisterProfileSectionRoute_PartialFailureFromDispatch_ReturnsPartialFailure(t *testing.T) {
 	route := RouteConfig{
 		ProfileSection: "PERSONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			return nil, &writepaths.PartialFailureError{
 				EmployeeInternalID: employeeInternalID,
 				ProfileSection:     "PERSONAL",
@@ -165,7 +165,7 @@ func TestRegisterProfileSectionRoute_PartialFailureFromDispatch_ReturnsPartialFa
 func TestRegisterProfileSectionRoute_DispatchTimeout_ReturnsPartialFailureNotTimeout(t *testing.T) {
 	route := RouteConfig{
 		ProfileSection: "PERSONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			<-ctx.Done()
 			return nil, errors.New("gateway: submit did not complete before the deadline")
 		},
@@ -195,7 +195,7 @@ func TestRegisterProfileSectionRoute_DispatchTimeout_ReturnsPartialFailureNotTim
 func TestRegisterProfileSectionRoute_SlowButSuccessfulDispatch_ReturnsCommitted(t *testing.T) {
 	route := RouteConfig{
 		ProfileSection: "PERSONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			<-ctx.Done()
 			return []byte(`{"recordID":"rec-slow-success"}`), nil
 		},
@@ -240,7 +240,7 @@ func TestRegisterProfileSectionRoute_NeverLeaksNewValueOrDocumentBytesInResponse
 			name: "committed",
 			body: fmt.Sprintf(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"fullName":%q},"document":%q}`, newValueMarker, documentB64),
 			auth: true,
-			dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+			dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 				return []byte(`{"recordID":"rec-1"}`), nil
 			},
 		},
@@ -248,7 +248,7 @@ func TestRegisterProfileSectionRoute_NeverLeaksNewValueOrDocumentBytesInResponse
 			name: "rejected_missing_employeeInternalID",
 			body: fmt.Sprintf(`{"userID":"user-1","newValue":{"fullName":%q},"document":%q}`, newValueMarker, documentB64),
 			auth: true,
-			dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+			dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 				t.Fatal("dispatch must not be called for a rejected request")
 				return nil, nil
 			},
@@ -257,7 +257,7 @@ func TestRegisterProfileSectionRoute_NeverLeaksNewValueOrDocumentBytesInResponse
 			name: "auth_error",
 			body: fmt.Sprintf(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"fullName":%q},"document":%q}`, newValueMarker, documentB64),
 			auth: false,
-			dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+			dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 				t.Fatal("dispatch must not be called for an auth-rejected request")
 				return nil, nil
 			},
@@ -266,7 +266,7 @@ func TestRegisterProfileSectionRoute_NeverLeaksNewValueOrDocumentBytesInResponse
 			name: "partial_failure",
 			body: fmt.Sprintf(`{"employeeInternalID":"emp-1","userID":"user-1","newValue":{"fullName":%q},"document":%q}`, newValueMarker, documentB64),
 			auth: true,
-			dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+			dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 				return nil, &writepaths.PartialFailureError{
 					EmployeeInternalID: employeeInternalID,
 					ProfileSection:     "PERSONAL",
@@ -304,7 +304,7 @@ func TestRegisterProfileSectionRoute_NeverLeaksNewValueOrDocumentBytesInResponse
 func TestRegisterProfileSectionRoute_WrongMethod_Returns405(t *testing.T) {
 	route := RouteConfig{
 		ProfileSection: "PERSONAL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			return nil, nil
 		},
 	}

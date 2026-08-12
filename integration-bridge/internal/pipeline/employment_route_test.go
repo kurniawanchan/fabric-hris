@@ -20,7 +20,7 @@ func TestRegisterProfileSectionRoute_EmploymentRoute_DispatchesAndReturnsCommitt
 	var gotNewValue []byte
 	route := RouteConfig{
 		ProfileSection: "EMPLOYMENT",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
 			gotUserID = userID
 			gotNewValue = newValue
@@ -65,7 +65,7 @@ func TestRegisterProfileSectionRoute_EmploymentRoute_AuthFailure_NeverCallsDispa
 	dispatchCalled := false
 	route := RouteConfig{
 		ProfileSection: "EMPLOYMENT",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
 			return nil, nil
 		},
@@ -104,7 +104,7 @@ func TestRegisterProfileSectionRoute_EmploymentRoute_AuthFailure_NeverCallsDispa
 func TestRegisterProfileSectionRoute_TransferPath_IsNotRegistered(t *testing.T) {
 	route := RouteConfig{
 		ProfileSection: "EMPLOYMENT",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			return nil, nil
 		},
 	}

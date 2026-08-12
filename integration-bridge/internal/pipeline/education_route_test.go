@@ -18,7 +18,7 @@ func TestRegisterProfileSectionRoute_EducationRoute_DispatchesAndReturnsCommitte
 	var gotNewValue []byte
 	route := RouteConfig{
 		ProfileSection: "EDUCATION",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
 			gotUserID = userID
 			gotNewValue = newValue
@@ -72,7 +72,7 @@ func TestRegisterProfileSectionRoute_EducationRoute_ValidateFailure_NeverCallsDi
 	dispatchCalled := false
 	route := RouteConfig{
 		ProfileSection: "EDUCATION",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
 			return nil, nil
 		},

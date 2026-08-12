@@ -23,13 +23,13 @@ func TestRegisterProfileSectionRoute_TwoRoutesOnOneMux_NeverCrossDispatch(t *tes
 
 	mux := http.NewServeMux()
 	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PERSONAL",
-		RouteConfig{ProfileSection: "PERSONAL", Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		RouteConfig{ProfileSection: "PERSONAL", Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			personalCalled = true
 			return []byte(`{"recordID":"rec-personal"}`), nil
 		}},
 		testAuthConfig(), "tenant01", time.Second)
 	RegisterProfileSectionRoute(mux, "POST /v1/profile-sections/PAYROLL",
-		RouteConfig{ProfileSection: "PAYROLL", Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		RouteConfig{ProfileSection: "PAYROLL", Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			payrollCalled = true
 			return []byte(`{"recordID":"rec-payroll"}`), nil
 		}},

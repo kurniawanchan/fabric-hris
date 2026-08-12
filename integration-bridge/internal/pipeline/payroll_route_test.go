@@ -17,7 +17,7 @@ func TestRegisterProfileSectionRoute_PayrollRoute_DispatchesAndReturnsCommitted(
 	var gotNewValue []byte
 	route := RouteConfig{
 		ProfileSection: "PAYROLL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			gotEmployeeInternalID = employeeInternalID
 			gotUserID = userID
 			gotNewValue = newValue
@@ -62,7 +62,7 @@ func TestRegisterProfileSectionRoute_PayrollRoute_ValidateFailure_NeverCallsDisp
 	dispatchCalled := false
 	route := RouteConfig{
 		ProfileSection: "PAYROLL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			dispatchCalled = true
 			return nil, nil
 		},
@@ -107,7 +107,7 @@ func TestRegisterProfileSectionRoute_PayrollRoute_LargeBankAccountNumber_Preserv
 	var gotNewValue []byte
 	route := RouteConfig{
 		ProfileSection: "PAYROLL",
-		Dispatch: func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+		Dispatch: func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 			gotNewValue = newValue
 			return []byte(`{"recordID":"rec-pay-2"}`), nil
 		},

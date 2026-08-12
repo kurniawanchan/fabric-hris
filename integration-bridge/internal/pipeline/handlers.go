@@ -37,7 +37,7 @@ func RegisterProfileSectionRoute(mux *http.ServeMux, path string, route RouteCon
 			return
 		}
 
-		employeeInternalID, userID, newValue, document, err := validateRequest(w, r)
+		employeeInternalID, userID, newValue, document, recordIdentity, err := validateRequest(w, r)
 		if err != nil {
 			bc.Err = err
 			respond(w, classify(bc.Err), bc.Result, bc.Err)
@@ -45,7 +45,7 @@ func RegisterProfileSectionRoute(mux *http.ServeMux, path string, route RouteCon
 		}
 		bc.EmployeeInternalID = employeeInternalID
 
-		bc.Result, bc.Err = dispatch(ctx, timeout, route.Dispatch, employeeInternalID, userID, newValue, document)
+		bc.Result, bc.Err = dispatch(ctx, timeout, route.Dispatch, employeeInternalID, userID, recordIdentity, newValue, document)
 		respond(w, classify(bc.Err), bc.Result, bc.Err)
 	})
 }

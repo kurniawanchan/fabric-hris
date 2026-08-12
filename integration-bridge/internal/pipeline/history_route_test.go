@@ -293,6 +293,31 @@ func TestRegisterProfileHistoryRoute_NeverAnchoredYet_ReturnsOkWithEmptyHistory(
 	}
 }
 
+// TestRegisterProfileHistoryRoute_RecordIdentity_ResolvesDistinctPseudonym
+// covers Story tf-3.2's fix: this route previously ignored recordIdentity
+// entirely, always resolving the "self" pseudonym even for a Family
+// sub-record -- silently wrong for any caller viewing a specific family
+// member's own history, not just reconciliation's use of this route.
+func TestRegisterProfileHistoryRoute_RecordIdentity_ResolvesDistinctPseudonym(t *testing.T) {
+	keys := &stubKeyResolver{key: []byte(testEmployeeKey)}
+	ledger := &stubLedgerReader{}
+	mux := newHistoryMux(keys, ledger)
+
+	req := newHistoryRequest("employeeInternalID=emp-1&profileSection=PERSONAL&recordIdentity=family-member-42", true)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if len(keys.calls) != 1 {
+		t.Fatalf("Keys called %d times, want 1", len(keys.calls))
+	}
+	if keys.calls[0] != "emp-1\x00family-member-42" {
+		t.Errorf("Keys called with %q, want the compound key composing employeeInternalID and recordIdentity", keys.calls[0])
+	}
+}
+
 func TestRegisterProfileHistoryRoute_WrongMethod_Returns405(t *testing.T) {
 	keys := &stubKeyResolver{key: []byte(testEmployeeKey)}
 	ledger := &stubLedgerReader{}

@@ -9,7 +9,7 @@ import (
 // writepaths.Hooks.UpdatePersonalData) -- dependency-inverted so [dispatch]
 // is unit-testable against a deliberately slow/erroring stub, the same
 // technique Story 1.1 used for newGatewayClientFunc.
-type DispatchFunc func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error)
+type DispatchFunc func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error)
 
 // dispatch is [dispatch] (AD-4): context.WithTimeout is the literal first
 // statement, scoped to only this call -- it starts once [auth]/[validate]
@@ -30,11 +30,11 @@ type DispatchFunc func(ctx context.Context, employeeInternalID, userID string, n
 // fired, dispatch reports context.DeadlineExceeded regardless of fn's exact
 // error text: classify() maps that to "partial_failure" (AC#6 -- never a
 // distinct "timeout" status).
-func dispatch(ctx context.Context, budget time.Duration, fn DispatchFunc, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+func dispatch(ctx context.Context, budget time.Duration, fn DispatchFunc, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 	dispatchCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 
-	result, err := fn(dispatchCtx, employeeInternalID, userID, newValue, document)
+	result, err := fn(dispatchCtx, employeeInternalID, userID, recordIdentity, newValue, document)
 	if err != nil && dispatchCtx.Err() == context.DeadlineExceeded {
 		return result, context.DeadlineExceeded
 	}

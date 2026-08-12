@@ -17,7 +17,8 @@ type requestEnvelope struct {
 	EmployeeInternalID string          `json:"employeeInternalID"`
 	UserID             string          `json:"userID"`
 	NewValue           json.RawMessage `json:"newValue"`
-	Document           string          `json:"document"` // base64, optional
+	Document           string          `json:"document"`       // base64, optional
+	RecordIdentity     string          `json:"recordIdentity"` // optional; "" = single-record domain (AD-3)
 }
 
 // maxRequestBodyBytes caps every request body this bridge accepts. This is
@@ -41,35 +42,35 @@ const maxRequestBodyBytes = 10 << 20 // 10 MiB
 //
 // Any failure here is wrapped in *validationError, never a bare error --
 // classify() relies on that type to route it to status "rejected".
-func validateRequest(w http.ResponseWriter, r *http.Request) (employeeInternalID, userID string, newValue, document []byte, err error) {
+func validateRequest(w http.ResponseWriter, r *http.Request) (employeeInternalID, userID string, newValue, document []byte, recordIdentity string, err error) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 
 	var env requestEnvelope
 	if decErr := json.NewDecoder(r.Body).Decode(&env); decErr != nil {
-		return "", "", nil, nil, &validationError{fmt.Errorf("integrationbridge: invalid request body: %w", decErr)}
+		return "", "", nil, nil, "", &validationError{fmt.Errorf("integrationbridge: invalid request body: %w", decErr)}
 	}
 
 	employeeInternalID = strings.TrimSpace(env.EmployeeInternalID)
 	if employeeInternalID == "" {
-		return "", "", nil, nil, &validationError{errors.New("integrationbridge: employeeInternalID is required")}
+		return "", "", nil, nil, "", &validationError{errors.New("integrationbridge: employeeInternalID is required")}
 	}
 	userID = strings.TrimSpace(env.UserID)
 	if userID == "" {
-		return "", "", nil, nil, &validationError{errors.New("integrationbridge: userID is required")}
+		return "", "", nil, nil, "", &validationError{errors.New("integrationbridge: userID is required")}
 	}
 	if !isJSONObject(env.NewValue) {
-		return "", "", nil, nil, &validationError{errors.New("integrationbridge: newValue is required and must be a JSON object")}
+		return "", "", nil, nil, "", &validationError{errors.New("integrationbridge: newValue is required and must be a JSON object")}
 	}
 
 	var doc []byte
 	if env.Document != "" {
 		doc, err = base64.StdEncoding.DecodeString(env.Document)
 		if err != nil {
-			return "", "", nil, nil, &validationError{fmt.Errorf("integrationbridge: document is not valid base64: %w", err)}
+			return "", "", nil, nil, "", &validationError{fmt.Errorf("integrationbridge: document is not valid base64: %w", err)}
 		}
 	}
 
-	return employeeInternalID, userID, []byte(env.NewValue), doc, nil
+	return employeeInternalID, userID, []byte(env.NewValue), doc, strings.TrimSpace(env.RecordIdentity), nil
 }
 
 // isJSONObject reports whether raw's first non-whitespace byte is '{' --

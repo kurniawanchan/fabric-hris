@@ -10,11 +10,11 @@ import (
 
 func TestDispatch_Success_ReturnsResultAndNilError(t *testing.T) {
 	want := []byte(`{"recordID":"abc"}`)
-	fn := func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+	fn := func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 		return want, nil
 	}
 
-	result, err := dispatch(context.Background(), time.Second, fn, "emp-1", "user-1", []byte(`{}`), nil)
+	result, err := dispatch(context.Background(), time.Second, fn, "emp-1", "user-1", "", []byte(`{}`), nil)
 	if err != nil {
 		t.Fatalf("dispatch() unexpected error: %v", err)
 	}
@@ -25,23 +25,23 @@ func TestDispatch_Success_ReturnsResultAndNilError(t *testing.T) {
 
 func TestDispatch_FnError_PropagatesWhenDeadlineNotExceeded(t *testing.T) {
 	wantErr := errors.New("boom")
-	fn := func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+	fn := func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 		return nil, wantErr
 	}
 
-	_, err := dispatch(context.Background(), time.Second, fn, "emp-1", "user-1", []byte(`{}`), nil)
+	_, err := dispatch(context.Background(), time.Second, fn, "emp-1", "user-1", "", []byte(`{}`), nil)
 	if !errors.Is(err, wantErr) {
 		t.Errorf("dispatch() error = %v, want it to wrap/equal %v", err, wantErr)
 	}
 }
 
 func TestDispatch_TimeoutFires_FnAlsoErrors_ReturnsDeadlineExceeded(t *testing.T) {
-	fn := func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+	fn := func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 		<-ctx.Done()
 		return nil, errors.New("gateway: context deadline exceeded")
 	}
 
-	_, err := dispatch(context.Background(), 10*time.Millisecond, fn, "emp-1", "user-1", []byte(`{}`), nil)
+	_, err := dispatch(context.Background(), 10*time.Millisecond, fn, "emp-1", "user-1", "", []byte(`{}`), nil)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("dispatch() error = %v, want context.DeadlineExceeded", err)
 	}
@@ -56,12 +56,12 @@ func TestDispatch_TimeoutFires_FnAlsoErrors_ReturnsDeadlineExceeded(t *testing.T
 // Only classify as a timeout when fn ALSO returns an error.
 func TestDispatch_TimeoutFires_FnStillSucceeds_ReturnsRealSuccess(t *testing.T) {
 	want := []byte(`{"recordID":"rec-slow-success"}`)
-	fn := func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+	fn := func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 		<-ctx.Done()
 		return want, nil
 	}
 
-	result, err := dispatch(context.Background(), 10*time.Millisecond, fn, "emp-1", "user-1", []byte(`{}`), nil)
+	result, err := dispatch(context.Background(), 10*time.Millisecond, fn, "emp-1", "user-1", "", []byte(`{}`), nil)
 	if err != nil {
 		t.Errorf("dispatch() error = %v, want nil -- a genuine success must survive even after the budget elapsed", err)
 	}
@@ -72,14 +72,14 @@ func TestDispatch_TimeoutFires_FnStillSucceeds_ReturnsRealSuccess(t *testing.T) 
 
 func TestDispatch_NeverRacesGoroutine_BlocksUntilFnReturns(t *testing.T) {
 	var fnFinished atomic.Bool
-	fn := func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+	fn := func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 		<-ctx.Done()
 		time.Sleep(30 * time.Millisecond)
 		fnFinished.Store(true)
 		return nil, nil
 	}
 
-	_, _ = dispatch(context.Background(), 5*time.Millisecond, fn, "emp-1", "user-1", []byte(`{}`), nil)
+	_, _ = dispatch(context.Background(), 5*time.Millisecond, fn, "emp-1", "user-1", "", []byte(`{}`), nil)
 
 	if !fnFinished.Load() {
 		t.Error("dispatch() returned before fn finished -- it must block synchronously, never race a goroutine against the timeout (AD-4)")
@@ -96,7 +96,7 @@ func TestDispatch_PassesArgsThroughUnchanged(t *testing.T) {
 	var gotNewValue, gotDocument []byte
 	var gotCtx context.Context
 
-	fn := func(ctx context.Context, employeeInternalID, userID string, newValue, document []byte) ([]byte, error) {
+	fn := func(ctx context.Context, employeeInternalID, userID, recordIdentity string, newValue, document []byte) ([]byte, error) {
 		gotCtx = ctx
 		gotEmployeeInternalID = employeeInternalID
 		gotUserID = userID
@@ -105,7 +105,7 @@ func TestDispatch_PassesArgsThroughUnchanged(t *testing.T) {
 		return nil, nil
 	}
 
-	_, _ = dispatch(context.Background(), time.Second, fn, wantEmployeeInternalID, wantUserID, wantNewValue, wantDocument)
+	_, _ = dispatch(context.Background(), time.Second, fn, wantEmployeeInternalID, wantUserID, "", wantNewValue, wantDocument)
 
 	if gotEmployeeInternalID != wantEmployeeInternalID {
 		t.Errorf("employeeInternalID = %q, want %q", gotEmployeeInternalID, wantEmployeeInternalID)

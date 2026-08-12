@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	gatewayclient "gatewayclient"
 	writepaths "writepaths"
 )
 
@@ -128,6 +127,7 @@ func RegisterProfileHistoryRoute(mux *http.ServeMux, path string, cfg HistoryRou
 			respondHistory(w, "rejected", "integrationbridge: employeeInternalID is required", nil)
 			return
 		}
+		recordIdentity := strings.TrimSpace(r.URL.Query().Get("recordIdentity"))
 
 		sections := writepaths.AllProfileSections
 		if requested := strings.TrimSpace(r.URL.Query().Get("profileSection")); requested != "" {
@@ -139,14 +139,9 @@ func RegisterProfileHistoryRoute(mux *http.ServeMux, path string, cfg HistoryRou
 		}
 
 		ctx := r.Context()
-		employeeKey, err := cfg.Keys.GetOrCreateEmployeeKey(ctx, employeeInternalID)
+		employeeID, err := writepaths.ResolveEmployeeID(ctx, cfg.Keys, employeeInternalID, recordIdentity)
 		if err != nil {
 			respondHistory(w, "error", fmt.Sprintf("integrationbridge: resolving employee key: %v", err), nil)
-			return
-		}
-		employeeID, err := gatewayclient.ComputeEmployeeID(employeeKey)
-		if err != nil {
-			respondHistory(w, "error", fmt.Sprintf("integrationbridge: computing EmployeeID: %v", err), nil)
 			return
 		}
 
