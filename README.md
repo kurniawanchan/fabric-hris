@@ -82,3 +82,28 @@ process before being marked done; two real, disclosed limitations came out of it
 (`grounding-gaps.md` G-35, G-36) rather than being silently claimed as covered. None of its
 `//go:build integration` tests have executed against a live network yet — see `sprint-status.yaml`'s
 recorded action items and `epic-1-retro-2026-08-09.md` for the full retrospective.
+
+A second, separately-tracked epic set (4 epics, 15 stories — see `_bmad-output/planning-artifacts/`)
+covers the other side of this integration: the HRIS platform's own application code now has a real
+trigger that calls `integration-bridge/`'s existing routes automatically on every profile-section
+write, instead of requiring a manual caller. As of 2026-08-13, 14 of those 15 stories (tf-1.1
+through tf-4.2) are implemented and in review — see `docs/QUICKSTART.md` §12 for the design shape
+and its disclosed open gap (retryable-vs-permanent error classification). What's landed:
+
+- All five profile-section write actions (not just one) now enqueue the trigger.
+- A per-record pseudonym (`recordIdentity`) so repeating sub-records (family members, education
+  entries, etc.) anchor and verify independently instead of colliding under one employee pseudonym.
+- An on-demand integrity-verification route and an independent, timestamp-derived reconciliation
+  sweep (deliberately never trusting the trigger's own success/failure log, so a suppressed trigger
+  can't blind it) — scoped to the two domains that actually carry a last-modified signal, with the
+  rest disclosed as a tracked gap rather than silently narrowed.
+- Encrypted-file-backed persistence (both for `integration-bridge`'s salt/key material and for the
+  HRIS platform's own dead-lettered jobs) replacing what was previously in-memory or log-only state,
+  plus operator console commands to list, inspect, and re-drive a dead-lettered job by its
+  correlation ID without losing or duplicating data.
+
+Only story tf-4.3 (a real, production-scale performance benchmark for this end-to-end path) remains
+open, and is expected to close as a disclosed limitation — no dedicated benchmarking hardware is
+available in this environment. Story-level test execution for the HRIS-platform-side stories was
+blocked throughout by a pre-existing, confirmed-unrelated defect in that platform's own test
+harness — documented, not silently skipped, in each story's own record.

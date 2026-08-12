@@ -253,6 +253,8 @@ BRIDGE_IPFS_PRIMARY_API=127.0.0.1:5001 \
 BRIDGE_IPFS_REPLICA_API=127.0.0.1:5002 \
 BRIDGE_API_KEY=dev-only-key \
 BRIDGE_COMPANY_ID=tenant01 \
+BRIDGE_KEYSTORE_DIR=/tmp/integrationbridge-keystore \
+BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
 go run ./cmd/integrationbridge
 ```
 
@@ -271,9 +273,10 @@ business-outcome channel (HTTP status is pure transport, per `ARCHITECTURE-SPINE
 that nothing happened. `Ctrl-C` sends `SIGTERM`, which the process handles gracefully (stops
 accepting new requests, closes the retained Gateway connection exactly once).
 
-**No persistent store exists yet** (`wiring.go`'s own doc comment) — every process restart loses
-every salt and `employeeKey_i` this service has ever generated. Fine for this quickstart, not for
-anything real.
+**Salts and `employeeKey_i` now persist across restarts** (an AES-256-GCM-encrypted local file
+under `BRIDGE_KEYSTORE_DIR`, keyed by `BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX`) — a process restart no
+longer loses them. This mechanism supports exactly one bridge process at a time (no cross-process
+file locking); it is not yet suitable for a multi-instance deployment.
 
 ## 10. Optional: provision a second tenant
 
@@ -294,3 +297,56 @@ against `tenant02` specifically — it is currently deliberately abandoned.
 See `docs/CODEBASE-MAP.md` §7 for a table of every real defect found and fixed this session, by
 component — most bring-up failures you'll hit have already happened once and are documented there
 with the exact fix, not just the symptom.
+
+## 12. HRIS-side write-path trigger (calling `integration-bridge` from the platform's own writes)
+
+Steps 8-9 exercised `integration-bridge/`'s five write routes directly — as a caller would. As of
+this addition, the HRIS platform's own application code has a real trigger that calls those same
+routes automatically whenever a profile-section write commits, rather than requiring a manual
+`curl` or a separate caller to invoke them.
+
+**Design shape** (see `_bmad-output/planning-artifacts/architecture/` for the full architecture
+spine this was built from): the trigger lives entirely on the HRIS platform's own side, as a new
+asynchronous job on that platform's existing background-job queue — not a synchronous call inside
+the request/response cycle. This means:
+
+- A profile-section write in the HRIS platform completes and returns to the caller immediately,
+  whether or not `integration-bridge` (or the Fabric network behind it) is reachable at that
+  moment.
+- Retry-with-backoff lives in that new job, not in `integration-bridge` itself — the bridge stays
+  exactly as simple and stateless as it was in steps 8-9, with no new resilience logic added to it.
+- On exhausted retries, the job is **dead-lettered to a persisted, restart-surviving record** on the
+  HRIS platform's own side (one record per correlation ID) — not merely logged. An operator can list
+  every dead-lettered job, look one up by its correlation ID, and re-drive it (re-enqueuing with the
+  exact same correlation ID and payload, so a redrive is a retry of the same logical anchor, not a
+  new one) via that platform's own console-command convention.
+- No chaincode or `integration-bridge` route contract changed to support this — the trigger is a
+  new caller of the existing five routes, not a new route or a new on-chain field.
+- A per-employee-per-record `recordIdentity` now flows end-to-end: the trigger passes it through to
+  `integration-bridge`'s write, history, and verification routes, so a repeating sub-record (e.g. a
+  family member, an education entry) anchors and later verifies under its own pseudonym rather than
+  silently colliding with the employee's "self" pseudonym.
+- A `GET /v1/profile-sections/verify` route (not present in steps 8-9) lets a caller assert a
+  current value (or, for a deletion assertion, omit/null it) against the last on-chain anchor for an
+  employee/section/`recordIdentity` triple, returning one of `verified`, `compromised`,
+  `deletion_verified`, `no_anchor_found`, or `rejected`.
+- A reconciliation sweep (its own scheduled/console job on the HRIS platform's side) independently
+  re-derives "what changed since the last sweep" from each domain table's own last-modified
+  timestamp — never from the trigger's own success/failure log, so a write that bypassed or
+  suppressed the trigger is still caught. Scope is currently the two domains with a real
+  last-modified signal; the remaining domains' lack of one is a disclosed, tracked gap, not a
+  silent narrowing.
+
+**Known gap, disclosed rather than silently carried forward:** `integration-bridge`'s error
+response shape (`{"status":"error","detail":"..."}`, from step 9) doesn't currently distinguish a
+transient transport failure (worth retrying) from a permanent business rejection (not worth
+retrying) — the trigger's retry logic still treats every non-`"ok"` response as retryable. This is
+a known, tracked limitation, not an oversight; see the architecture spine's own open items for the
+fuller writeup.
+
+Coverage: all five profile-section write actions now enqueue this trigger. A production-scale
+performance benchmark for this end-to-end path is separately tracked and not yet run (no dedicated
+benchmarking hardware available in this environment) — see the architecture spine and its companion
+epic/story breakdown under `_bmad-output/planning-artifacts/` for the full rollout plan and current
+story-by-story status (not linked by exact path here since this file stays in the hard-clean
+register per this repo's confidentiality rules, CLAUDE.md).
