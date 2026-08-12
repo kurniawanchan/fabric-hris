@@ -4,7 +4,7 @@ baseline_commit: c0a8852e1ee5acb3a38a87e2f0d88a4044dba7ab  # talenta-core
 
 # Story tf-4.3: Real production performance benchmark and backlog threshold
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

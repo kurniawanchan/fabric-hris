@@ -4,7 +4,7 @@ baseline_commit: 013d68239cc576a402f70b455a24d2cdd02ab74f  # fabric-hris (workin
 
 # Story tf-4.1: Persistent salt/key store for `integration-bridge`
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

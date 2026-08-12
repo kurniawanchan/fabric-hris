@@ -4,7 +4,7 @@ baseline_commit: e18ba49ca987bddad1966a40189568a90555db7a  # talenta-core HEAD (
 
 # Story tf-2.1: Wire Personal domain's remaining actions and fix the Family/Additional-Info route mapping
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

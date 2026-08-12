@@ -4,7 +4,7 @@ baseline_commit: e18ba49ca987bddad1966a40189568a90555db7a  # talenta-core-featur
 
 # Story tf-1.1: Reliably trigger every Payroll write toward Fabric anchoring
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

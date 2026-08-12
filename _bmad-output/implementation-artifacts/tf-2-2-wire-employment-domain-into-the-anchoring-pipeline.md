@@ -4,7 +4,7 @@ baseline_commit: e18ba49ca987bddad1966a40189568a90555db7a  # talenta-core (worki
 
 # Story tf-2.2: Wire Employment domain into the anchoring pipeline
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

@@ -4,7 +4,7 @@ baseline_commit: 013d68239cc576a402f70b455a24d2cdd02ab74f  # fabric-hris repo (t
 
 # Story tf-2.0: Add per-`recordIdentity` pseudonym derivation to the Fabric-side write path
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
