@@ -11,6 +11,10 @@ _bmad
 # macOS
 .DS_Store
 
+# Playwright MCP browser-automation captures — logs/snapshots can leak real
+# hostnames/product names (confidentiality register, CLAUDE.md)
+.playwright-mcp/
+
 # Go tool binaries — build with `go build`/`go run`, don't commit
 fabric-network/tools/ccdeploy/ccdeploy
 fabric-network/tools/jcsverify/jcsverify

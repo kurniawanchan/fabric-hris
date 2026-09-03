@@ -126,18 +126,15 @@
             <ul>
                 <h3>&nbspBasic information</h3>
                 <li>DLT: &nbsp<span style="font-weight: 500;">fabric</span></li>
-                <li>Name: &nbsp<span style="font-weight: 500;">qa6-mvcc-contention</span></li>
-                <li>Description: &nbsp<span style="font-weight: 500;">QA-6: N concurrent workers all submit RecordProfileSection for the exact same, brand-new (employeeID, profileSection) pair (prevHash&#x3D;&quot;&quot;) in one round, at N&#x3D;2&#x2F;5&#x2F;10. Expect exactly 1 commit success and N-1 Fabric MVCC_READ_CONFLICT rejections per round -- see QA6-RESULTS.md for the real observed outcome, including whether it actually matched that expectation.
-</span></li>
-                <li>Benchmark Rounds: &nbsp<span style="font-weight: 500;">3</span></li>
+                <li>Name: &nbsp<span style="font-weight: 500;">pt1-diag</span></li>
+                <li>Description: &nbsp<span style="font-weight: 500;">Diagnostic single-round runs to characterize write latency&#x2F;throughput before committing to the full PT-1&#x2F;PT-2 matrix.</span></li>
+                <li>Benchmark Rounds: &nbsp<span style="font-weight: 500;">1</span></li>
                 <li><a href="#benchmarkInfo">Details</a></li>
             </ul>
             <ul>
                 <h3>&nbspBenchmark results</h3>
                 <li><a href="#benchmarksummary">Summary</a></li>
-                    <li><a href="#qa6-hotkey-n2">qa6-hotkey-n2</a></li>
-                    <li><a href="#qa6-hotkey-n5">qa6-hotkey-n5</a></li>
-                    <li><a href="#qa6-hotkey-n10">qa6-hotkey-n10</a></li>
+                    <li><a href="#pt1-diag-20tps-5w">pt1-diag-20tps-5w</a></li>
             </ul>
             <ul>
                 <h3>&nbspSystem under test</h3>
@@ -155,131 +152,52 @@
                     </tr>
 
                     <tr>
-                         <td>qa6-hotkey-n2</td> <td>9</td> <td>1</td> <td>39.5</td> <td>4.43</td> <td>4.18</td> <td>4.33</td> <td>2.3</td>
-                    </tr>
-                    <tr>
-                         <td>qa6-hotkey-n5</td> <td>6</td> <td>4</td> <td>200.0</td> <td>3.23</td> <td>3.21</td> <td>3.23</td> <td>3.1</td>
-                    </tr>
-                    <tr>
-                         <td>qa6-hotkey-n10</td> <td>1</td> <td>9</td> <td>454.5</td> <td>3.13</td> <td>3.13</td> <td>3.13</td> <td>3.2</td>
+                         <td>pt1-diag-20tps-5w</td> <td>0</td> <td>305</td> <td>20.4</td> <td>-</td> <td>-</td> <td>-</td> <td>20.4</td>
                     </tr>
                 </table>
             </div>
-            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="qa6-hotkey-n2">
-                <h2>Benchmark round: qa6-hotkey-n2</h2>
+            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="pt1-diag-20tps-5w">
+                <h2>Benchmark round: pt1-diag-20tps-5w</h2>
                 <p></p>
-                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">rateControl:
+                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">txDuration: 15
+rateControl:
   type: fixed-rate
   opts:
-    tps: 50
+    tps: 20
 </pre>
-                        <h3>Performance metrics for qa6-hotkey-n2</h3>
+                        <h3>Performance metrics for pt1-diag-20tps-5w</h3>
                             <table style="min-width: 100%;">
                                 <tr>
                                      <th>Name</th> <th>Succ</th> <th>Fail</th> <th>Send Rate (TPS)</th> <th>Max Latency (s)</th> <th>Min Latency (s)</th> <th>Avg Latency (s)</th> <th>Throughput (TPS)</th>
                                 </tr>
                                 <tr>
-                                     <td>qa6-hotkey-n2</td> <td>9</td> <td>1</td> <td>39.5</td> <td>4.43</td> <td>4.18</td> <td>4.33</td> <td>2.3</td>
+                                     <td>pt1-diag-20tps-5w</td> <td>0</td> <td>305</td> <td>20.4</td> <td>-</td> <td>-</td> <td>-</td> <td>20.4</td>
                                 </tr>
                             </table>
-                        <h3>Resource utilization for qa6-hotkey-n2</h3>
-            </div>
-
-            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="qa6-hotkey-n5">
-                <h2>Benchmark round: qa6-hotkey-n5</h2>
-                <p></p>
-                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">rateControl:
-  type: fixed-rate
-  opts:
-    tps: 50
-</pre>
-                        <h3>Performance metrics for qa6-hotkey-n5</h3>
-                            <table style="min-width: 100%;">
-                                <tr>
-                                     <th>Name</th> <th>Succ</th> <th>Fail</th> <th>Send Rate (TPS)</th> <th>Max Latency (s)</th> <th>Min Latency (s)</th> <th>Avg Latency (s)</th> <th>Throughput (TPS)</th>
-                                </tr>
-                                <tr>
-                                     <td>qa6-hotkey-n5</td> <td>6</td> <td>4</td> <td>200.0</td> <td>3.23</td> <td>3.21</td> <td>3.23</td> <td>3.1</td>
-                                </tr>
-                            </table>
-                        <h3>Resource utilization for qa6-hotkey-n5</h3>
-            </div>
-
-            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="qa6-hotkey-n10">
-                <h2>Benchmark round: qa6-hotkey-n10</h2>
-                <p></p>
-                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">rateControl:
-  type: fixed-rate
-  opts:
-    tps: 50
-</pre>
-                        <h3>Performance metrics for qa6-hotkey-n10</h3>
-                            <table style="min-width: 100%;">
-                                <tr>
-                                     <th>Name</th> <th>Succ</th> <th>Fail</th> <th>Send Rate (TPS)</th> <th>Max Latency (s)</th> <th>Min Latency (s)</th> <th>Avg Latency (s)</th> <th>Throughput (TPS)</th>
-                                </tr>
-                                <tr>
-                                     <td>qa6-hotkey-n10</td> <td>1</td> <td>9</td> <td>454.5</td> <td>3.13</td> <td>3.13</td> <td>3.13</td> <td>3.2</td>
-                                </tr>
-                            </table>
-                        <h3>Resource utilization for qa6-hotkey-n10</h3>
+                        <h3>Resource utilization for pt1-diag-20tps-5w</h3>
             </div>
 
             <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;">
                 <h2>Test Environment</h2>
                 <h3>benchmark config</h3>
-                <pre id="benchmarkInfo" style="overflow: visible;white-space: pre-wrap;max-height:100%;">name: qa6-mvcc-contention
-description: &gt;
-  QA-6: N concurrent workers all submit RecordProfileSection for the exact same,
-  brand-new (employeeID, profileSection) pair (prevHash&#x3D;&quot;&quot;) in one round, at
-  N&#x3D;2&#x2F;5&#x2F;10. Expect exactly 1 commit success and N-1 Fabric MVCC_READ_CONFLICT
-  rejections per round -- see QA6-RESULTS.md for the real observed outcome,
-  including whether it actually matched that expectation.
+                <pre id="benchmarkInfo" style="overflow: visible;white-space: pre-wrap;max-height:100%;">name: pt1-diag
+description: &gt;-
+  Diagnostic single-round runs to characterize write latency&#x2F;throughput before
+  committing to the full PT-1&#x2F;PT-2 matrix.
 workers:
-  number: 10
+  number: 5
 rounds:
-  - label: qa6-hotkey-n2
-    txNumber: 10
+  - label: pt1-diag-20tps-5w
+    txDuration: 15
     rateControl:
       type: fixed-rate
       opts:
-        tps: 50
+        tps: 20
     workload:
-      module: .&#x2F;workload&#x2F;hotkey.js
+      module: .&#x2F;workload&#x2F;write.js
       arguments:
         tenantId: tenant01
-        roundLabel: qa6-hotkey-n2
-        employeeId: qa6-hotkey-n2-150728f90f4e7c0688e4a9de0906a779
-        profileSection: PERSONAL
-        activeWorkers: 2
-  - label: qa6-hotkey-n5
-    txNumber: 10
-    rateControl:
-      type: fixed-rate
-      opts:
-        tps: 50
-    workload:
-      module: .&#x2F;workload&#x2F;hotkey.js
-      arguments:
-        tenantId: tenant01
-        roundLabel: qa6-hotkey-n5
-        employeeId: qa6-hotkey-n5-19300fd4230d104c84d74d095326b166
-        profileSection: PERSONAL
-        activeWorkers: 5
-  - label: qa6-hotkey-n10
-    txNumber: 10
-    rateControl:
-      type: fixed-rate
-      opts:
-        tps: 50
-    workload:
-      module: .&#x2F;workload&#x2F;hotkey.js
-      arguments:
-        tenantId: tenant01
-        roundLabel: qa6-hotkey-n10
-        employeeId: qa6-hotkey-n10-db45e8c26a240e0057fdb505eb8f0dbb
-        profileSection: PERSONAL
-        activeWorkers: 10
+        roundLabel: pt1-diag-20tps-5w
 </pre>
                 <h3>SUT</h3>
                 <pre id="sutdetails">not provided</pre>
