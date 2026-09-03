@@ -1,0 +1,85 @@
+meta {
+  name: Verify - On-demand integrity check
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/v1/profile-sections/verify
+  body: json
+  auth: none
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+  X-Company-ID: {{companyId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "employeeInternalID": "{{employeeInternalID}}",
+    "profileSection": "PERSONAL",
+    "recordIdentity": "",
+    "currentValue": {
+      "maritalStatus": "married",
+      "address": "REDACTED-FOR-DOCS-EXAMPLE"
+    }
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("status is one of the documented verify outcomes", function () {
+    const body = res.getBody();
+    expect([
+      "verified",
+      "compromised",
+      "deletion_verified",
+      "no_anchor_found",
+      "rejected",
+      "error"
+    ]).to.include(body.status);
+  });
+}
+
+docs {
+  # POST /v1/profile-sections/verify
+
+  On-demand integrity check (FR-10): recomputes the digest of a
+  caller-supplied "current value" and compares it against the latest
+  on-chain anchor for the same employee/section/record.
+
+  Source: `integration-bridge/internal/pipeline/verify.go`.
+
+  ## Request body
+  | Field | Type | Required | Notes |
+  |---|---|---|---|
+  | `employeeInternalID` | string | yes | Same resolution as the history route. |
+  | `profileSection` | string | yes | Must be one of the five ratified sections. |
+  | `recordIdentity` | string | no | Multi-record domains only. |
+  | `currentValue` | JSON object, or omitted/`null` | no | Omitted or explicit `null` asserts "this record is deleted" and short-circuits to `deletion_verified` — it is never treated as an attempted hash comparison against an absent value. |
+
+  ## Response body
+  | Field | Notes |
+  |---|---|
+  | `status` | See outcomes table below. |
+  | `detail` | Present on non-terminal-success statuses. |
+
+  ## Outcomes
+  | status | Meaning | HTTP |
+  |---|---|---|
+  | `verified` | Recomputed digest matches the latest on-chain anchor. | 200 |
+  | `compromised` | Recomputed digest does NOT match the latest anchor — the current value has diverged from what was anchored. | 200 |
+  | `deletion_verified` | `currentValue` omitted/null — caller asserts deletion; no digest comparison performed. | 200 |
+  | `no_anchor_found` | No anchor exists yet for this employee/section/recordIdentity. | 200 |
+  | `rejected` | Malformed request or unknown `profileSection`. | 400 |
+  | `error` | Auth failure, key/salt resolution failure, or ledger query failure. | 500 |
+
+  A `compromised` result surfaces a real integrity finding — treat it the
+  same as any tamper-evidence alert would be treated operationally
+  (out of scope for this doc); do not silently retry it away.
+}

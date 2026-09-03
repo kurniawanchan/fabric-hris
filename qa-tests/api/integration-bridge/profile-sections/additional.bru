@@ -1,0 +1,52 @@
+meta {
+  name: ADDITIONAL - Update additional info
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/v1/profile-sections/ADDITIONAL
+  body: json
+  auth: none
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+  X-Company-ID: {{companyId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "employeeInternalID": "{{employeeInternalID}}",
+    "userID": "{{userID}}",
+    "newValue": {
+      "emergencyContact": "REDACTED-FOR-DOCS-EXAMPLE"
+    },
+    "recordIdentity": "",
+    "document": ""
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("status is a valid AD-3 value", function () {
+    const body = res.getBody();
+    expect(["committed", "partial_failure", "rejected", "error"]).to.include(body.status);
+  });
+}
+
+docs {
+  # POST /v1/profile-sections/ADDITIONAL
+
+  Anchors an update to an employee's ADDITIONAL profile section. Dispatches
+  to `hooks.UpdateAdditionalInfo`. Same AD-5 pipeline, request/response
+  envelope, auth, and status→HTTP mapping as `PERSONAL` — see that request's
+  docs for the shared contract. `newValue` fields shown are illustrative
+  (ASSUMPTION — not schema-verified from source).
+
+  Source: `integration-bridge/cmd/integrationbridge/main.go` (`buildMux`).
+}

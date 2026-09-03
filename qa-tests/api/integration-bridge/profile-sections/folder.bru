@@ -1,0 +1,12 @@
+meta {
+  name: profile-sections
+}
+
+docs {
+  The five AD-5 write routes. All share the identical 5-stage pipeline
+  (`[auth] -> [validate] -> [dispatch] -> [map-error] -> [respond]`) defined
+  once in `integration-bridge/internal/pipeline/handlers.go`'s
+  `RegisterProfileSectionRoute`; each request file documents only what
+  differs (dispatch target, domain shape) plus a full copy of the shared
+  contract on `PERSONAL` for lookup convenience.
+}

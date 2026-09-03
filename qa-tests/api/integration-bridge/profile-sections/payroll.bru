@@ -1,0 +1,63 @@
+meta {
+  name: PAYROLL - Update payroll bank account
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/v1/profile-sections/PAYROLL
+  body: json
+  auth: none
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+  X-Company-ID: {{companyId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "employeeInternalID": "{{employeeInternalID}}",
+    "userID": "{{userID}}",
+    "newValue": {
+      "bankAccountNumber": "REDACTED-FOR-DOCS-EXAMPLE"
+    },
+    "recordIdentity": "",
+    "document": ""
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("status is a valid AD-3 value", function () {
+    const body = res.getBody();
+    expect(["committed", "partial_failure", "rejected", "error"]).to.include(body.status);
+  });
+}
+
+docs {
+  # POST /v1/profile-sections/PAYROLL
+
+  Anchors an update to an employee's PAYROLL bank account section.
+  Dispatches to `hooks.UpdatePayrollBankAccount`. Same AD-5 pipeline,
+  request/response envelope, auth, and status→HTTP mapping as `PERSONAL` —
+  see that request's docs for the shared contract.
+
+  `newValue` is parsed as `json.RawMessage` and never decoded into
+  `map[string]interface{}`/`interface{}` specifically to avoid corrupting
+  large integers past float64's 2^53 exact-integer boundary — relevant here
+  because a bank account number is exactly the kind of value this protects
+  (`integration-bridge/internal/pipeline/validate.go`).
+
+  Never place a real bank account number in this request outside of a
+  live, authorized test against a non-production environment — this
+  endpoint's whole design goal is that no such value is ever persisted
+  in cleartext beyond the caller's own request; do not defeat that by
+  logging or committing real values here.
+
+  Source: `integration-bridge/cmd/integrationbridge/main.go` (`buildMux`).
+}

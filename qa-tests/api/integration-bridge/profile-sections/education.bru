@@ -1,0 +1,56 @@
+meta {
+  name: EDUCATION - Record education history
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/v1/profile-sections/EDUCATION
+  body: json
+  auth: none
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+  X-Company-ID: {{companyId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "employeeInternalID": "{{employeeInternalID}}",
+    "userID": "{{userID}}",
+    "newValue": {
+      "degree": "Bachelor",
+      "institution": "REDACTED-FOR-DOCS-EXAMPLE"
+    },
+    "recordIdentity": "edu-record-1",
+    "document": ""
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("status is a valid AD-3 value", function () {
+    const body = res.getBody();
+    expect(["committed", "partial_failure", "rejected", "error"]).to.include(body.status);
+  });
+}
+
+docs {
+  # POST /v1/profile-sections/EDUCATION
+
+  Anchors an education-history record. Dispatches to
+  `hooks.RecordEducationHistory`. Same AD-5 pipeline, request/response
+  envelope, auth, and status→HTTP mapping as `PERSONAL` — see that request's
+  docs for the shared contract. Unlike PERSONAL, EDUCATION is a
+  multi-record domain, so `recordIdentity` is typically non-empty (a caller
+  supplied identifier distinguishing multiple education entries per
+  employee). `newValue` fields shown are illustrative (ASSUMPTION — not
+  schema-verified from source).
+
+  Source: `integration-bridge/cmd/integrationbridge/main.go` (`buildMux`).
+}

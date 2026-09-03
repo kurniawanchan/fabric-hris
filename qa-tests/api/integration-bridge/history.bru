@@ -1,0 +1,77 @@
+meta {
+  name: History - Get profile section history
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/v1/profile-sections/history?employeeInternalID={{employeeInternalID}}&profileSection=PERSONAL
+  body: none
+  auth: none
+}
+
+params:query {
+  employeeInternalID: {{employeeInternalID}}
+  profileSection: PERSONAL
+  recordIdentity:
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+  X-Company-ID: {{companyId}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("status is ok/rejected/error", function () {
+    const body = res.getBody();
+    expect(["ok", "rejected", "error"]).to.include(body.status);
+  });
+
+  test("history entries never carry a section value or salt", function () {
+    const body = res.getBody();
+    if (body.status === "ok" && body.history && body.history.length > 0) {
+      const entry = body.history[0];
+      expect(entry).to.not.have.property("newValue");
+      expect(entry).to.not.have.property("salt");
+    }
+  });
+}
+
+docs {
+  # GET /v1/profile-sections/history
+
+  The one read route the bridge exposes: returns the on-chain transaction
+  history for an employee, optionally scoped to one profile section.
+
+  Source: `integration-bridge/internal/pipeline/history.go`.
+
+  ## Query parameters
+  | Param | Required | Notes |
+  |---|---|---|
+  | `employeeInternalID` | yes | Resolved server-side to the on-chain pseudonym via `keystore.EmployeeKeyStore.GetOrCreateEmployeeKey` — the caller's identifier never leaves the request; the response contains no pseudonym either. |
+  | `profileSection` | no | One of the five ratified sections (`PERSONAL`, `EMPLOYMENT`, `EDUCATION`, `ADDITIONAL`, `PAYROLL`). Omitted = fan out across all five and merge. |
+  | `recordIdentity` | no | Passed through to `ResolveEmployeeID`; relevant only for multi-record domains. |
+
+  ## Response body
+  | Field | Notes |
+  |---|---|
+  | `status` | `ok`, `rejected`, or `error`. An empty `history` array with `status: "ok"` is a valid, non-error outcome — "never anchored yet" is not an error. |
+  | `history[]` | Newest-first (`Timestamp` string-sorted descending — RFC3339, so lexicographic order is correct). Each entry: `profileSection`, `canonicalizationVersion`, `dataHash`, `hashAlgo`, `ipfsCIDs`, `prevHash`, `recordID`, `timestamp`, `updatedBy`, `version`. |
+  | `detail` | Present on `rejected`/`error`. |
+
+  By design, no entry ever carries the section's underlying value or its
+  salt — only the anchored digest and its provenance metadata. This is the
+  zero-PII-on-chain guarantee surfaced back to the caller, not just an
+  on-ledger property.
+
+  ## Status → HTTP code
+  | status | HTTP |
+  |---|---|
+  | `ok` | 200 |
+  | `rejected` | 400 |
+  | `error` | 500 |
+}

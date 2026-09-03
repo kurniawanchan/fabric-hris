@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "fabric-hris integration-bridge",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

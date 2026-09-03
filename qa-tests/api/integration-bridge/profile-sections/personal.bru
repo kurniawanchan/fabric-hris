@@ -1,0 +1,97 @@
+meta {
+  name: PERSONAL - Update personal data
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/v1/profile-sections/PERSONAL
+  body: json
+  auth: none
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+  X-Company-ID: {{companyId}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "employeeInternalID": "{{employeeInternalID}}",
+    "userID": "{{userID}}",
+    "newValue": {
+      "maritalStatus": "married",
+      "address": "REDACTED-FOR-DOCS-EXAMPLE"
+    },
+    "recordIdentity": "",
+    "document": ""
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("status is a valid AD-3 value", function () {
+    const body = res.getBody();
+    expect(["committed", "partial_failure", "rejected", "error"]).to.include(body.status);
+  });
+
+  test("committed response carries a recordID", function () {
+    const body = res.getBody();
+    if (body.status === "committed") {
+      expect(body.recordID).to.be.a("string").and.not.empty;
+    }
+  });
+}
+
+docs {
+  # POST /v1/profile-sections/PERSONAL
+
+  Anchors an update to an employee's PERSONAL profile section. This is one of
+  the five AD-5 write routes in `integration-bridge`; all five share the
+  identical 5-stage pipeline (`[auth] -> [validate] -> [dispatch] ->
+  [map-error] -> [respond]`) and only differ in `ProfileSection` and the
+  `writepaths.Hooks` method invoked (`hooks.UpdatePersonalData` here).
+
+  Source: `integration-bridge/internal/pipeline/handlers.go`,
+  `integration-bridge/cmd/integrationbridge/main.go` (`buildMux`).
+
+  ## Auth
+  Requires `X-Api-Key` and `X-Company-ID` headers, both checked with a
+  constant-time comparison (`integration-bridge/internal/pipeline/auth.go`).
+  A missing or mismatched header on either returns the identical error
+  message by design — the response never discloses which header was wrong.
+
+  ## Request body
+  | Field | Type | Required | Notes |
+  |---|---|---|---|
+  | `employeeInternalID` | string | yes | Caller-side employee identifier; never stored on-chain in cleartext. |
+  | `userID` | string | yes | Acting user, recorded as `updatedBy` on-chain. |
+  | `newValue` | JSON object | yes | Hashed byte-for-byte via JCS+HMAC-SHA256 — the raw bytes are preserved via `json.RawMessage`, never round-tripped through `map[string]interface{}`. Zero PII reaches the chain; only the resulting digest is anchored. |
+  | `document` | string | no | Base64-encoded supporting document. When present, encrypted and pinned to IPFS before anchoring (`Hooks.IPFS`). Body capped at 10 MiB total. |
+  | `recordIdentity` | string | no | Empty string means "single-record domain" (AD-3) — PERSONAL is single-record. |
+
+  ## Response body (`AD-3` envelope)
+  | Field | Present when | Notes |
+  |---|---|---|
+  | `status` | always | One of `committed`, `partial_failure`, `rejected`, `error`. |
+  | `recordID` | `status == "committed"` | On-chain record identifier. |
+  | `detail` | any non-`committed` status | Error message. Never echoes request body content. |
+
+  ## Status → HTTP code
+  | status | HTTP |
+  |---|---|
+  | `committed` | 200 |
+  | `partial_failure` | 200 (dispatch timed out or partially failed — outcome is uncertain, not necessarily wrong) |
+  | `rejected` | 400 |
+  | `error` | 500 |
+
+  ## ASSUMPTION
+  Example field names (`maritalStatus`, `address`) are illustrative — the
+  chaincode/bridge impose no schema on `newValue` beyond "must be a JSON
+  object"; the real PERSONAL section's field set is not defined in this
+  layer's source and is unverified here.
+}
