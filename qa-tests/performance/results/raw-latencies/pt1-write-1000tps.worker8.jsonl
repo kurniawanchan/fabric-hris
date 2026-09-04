@@ -313,3 +313,15 @@
 {"ts":1786089458826,"latencyMs":53426.256041,"success":true}
 {"ts":1786089458826,"latencyMs":53700.1205,"success":true}
 {"ts":1786089458833,"latencyMs":54522.919125,"success":true}
+{"ts":1788495929588,"latencyMs":2008.505875,"success":false}
+{"ts":1788495929590,"latencyMs":2188.542083,"success":false}
+{"ts":1788495933847,"latencyMs":6391.22625,"success":false}
+{"ts":1788495937638,"latencyMs":10068.643167,"success":false}
+{"ts":1788495938732,"latencyMs":11170.066458,"success":false}
+{"ts":1788495940433,"latencyMs":12858.257834,"success":false}
+{"ts":1788495941382,"latencyMs":13895.990084,"success":false}
+{"ts":1788495947259,"latencyMs":19662.711291,"success":false}
+{"ts":1788495948216,"latencyMs":20665.666958,"success":false}
+{"ts":1788495950454,"latencyMs":22896.475333,"success":false}
+{"ts":1788495950771,"latencyMs":23188.821583,"success":false}
+{"ts":1788495953194,"latencyMs":2724.257041,"success":true}

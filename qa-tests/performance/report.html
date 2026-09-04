@@ -126,15 +126,19 @@
             <ul>
                 <h3>&nbspBasic information</h3>
                 <li>DLT: &nbsp<span style="font-weight: 500;">fabric</span></li>
-                <li>Name: &nbsp<span style="font-weight: 500;">pt1-diag</span></li>
-                <li>Description: &nbsp<span style="font-weight: 500;">Diagnostic single-round runs to characterize write latency&#x2F;throughput before committing to the full PT-1&#x2F;PT-2 matrix.</span></li>
-                <li>Benchmark Rounds: &nbsp<span style="font-weight: 500;">1</span></li>
+                <li>Name: &nbsp<span style="font-weight: 500;">pt1-pt2-write-throughput-latency</span></li>
+                <li>Description: &nbsp<span style="font-weight: 500;">PT-1: profile-write throughput at load points 200&#x2F;500&#x2F;1000&#x2F;2000 tx&#x2F;sec (PRD NFR-1: &lt;3s @ 500 TPS). PT-2: write latency percentiles (p50&#x2F;p95&#x2F;p99) for the same endorse-&gt;commit path, AND(Org1MSP.peer, OrgClient-tenant01MSP.peer). Each round runs for a fixed 20s wall-clock window at its requested rate; Caliper reports ACHIEVED throughput&#x2F;latency separately from the requested rate -- both are captured verbatim in RESULTS.md, including any shortfall or failures at higher load points this laptop&#39;s single-node-per-org Fabric network + IPFS stack cannot sustain.
+</span></li>
+                <li>Benchmark Rounds: &nbsp<span style="font-weight: 500;">4</span></li>
                 <li><a href="#benchmarkInfo">Details</a></li>
             </ul>
             <ul>
                 <h3>&nbspBenchmark results</h3>
                 <li><a href="#benchmarksummary">Summary</a></li>
-                    <li><a href="#pt1-diag-20tps-5w">pt1-diag-20tps-5w</a></li>
+                    <li><a href="#pt1-write-200tps">pt1-write-200tps</a></li>
+                    <li><a href="#pt1-write-500tps">pt1-write-500tps</a></li>
+                    <li><a href="#pt1-write-1000tps">pt1-write-1000tps</a></li>
+                    <li><a href="#pt1-write-2000tps">pt1-write-2000tps</a></li>
             </ul>
             <ul>
                 <h3>&nbspSystem under test</h3>
@@ -152,52 +156,163 @@
                     </tr>
 
                     <tr>
-                         <td>pt1-diag-20tps-5w</td> <td>0</td> <td>305</td> <td>20.4</td> <td>-</td> <td>-</td> <td>-</td> <td>20.4</td>
+                         <td>pt1-write-200tps</td> <td>3535</td> <td>490</td> <td>197.1</td> <td>3.75</td> <td>0.47</td> <td>1.89</td> <td>179.3</td>
+                    </tr>
+                    <tr>
+                         <td>pt1-write-500tps</td> <td>4443</td> <td>531</td> <td>198.4</td> <td>24.74</td> <td>0.19</td> <td>5.38</td> <td>190.0</td>
+                    </tr>
+                    <tr>
+                         <td>pt1-write-1000tps</td> <td>6131</td> <td>518</td> <td>239.6</td> <td>25.66</td> <td>0.32</td> <td>4.71</td> <td>223.2</td>
+                    </tr>
+                    <tr>
+                         <td>pt1-write-2000tps</td> <td>7523</td> <td>735</td> <td>345.9</td> <td>22.45</td> <td>0.29</td> <td>5.99</td> <td>326.6</td>
                     </tr>
                 </table>
             </div>
-            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="pt1-diag-20tps-5w">
-                <h2>Benchmark round: pt1-diag-20tps-5w</h2>
+            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="pt1-write-200tps">
+                <h2>Benchmark round: pt1-write-200tps</h2>
                 <p></p>
-                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">txDuration: 15
+                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">txDuration: 20
 rateControl:
   type: fixed-rate
   opts:
-    tps: 20
+    tps: 200
 </pre>
-                        <h3>Performance metrics for pt1-diag-20tps-5w</h3>
+                        <h3>Performance metrics for pt1-write-200tps</h3>
                             <table style="min-width: 100%;">
                                 <tr>
                                      <th>Name</th> <th>Succ</th> <th>Fail</th> <th>Send Rate (TPS)</th> <th>Max Latency (s)</th> <th>Min Latency (s)</th> <th>Avg Latency (s)</th> <th>Throughput (TPS)</th>
                                 </tr>
                                 <tr>
-                                     <td>pt1-diag-20tps-5w</td> <td>0</td> <td>305</td> <td>20.4</td> <td>-</td> <td>-</td> <td>-</td> <td>20.4</td>
+                                     <td>pt1-write-200tps</td> <td>3535</td> <td>490</td> <td>197.1</td> <td>3.75</td> <td>0.47</td> <td>1.89</td> <td>179.3</td>
                                 </tr>
                             </table>
-                        <h3>Resource utilization for pt1-diag-20tps-5w</h3>
+                        <h3>Resource utilization for pt1-write-200tps</h3>
+            </div>
+
+            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="pt1-write-500tps">
+                <h2>Benchmark round: pt1-write-500tps</h2>
+                <p></p>
+                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">txDuration: 20
+rateControl:
+  type: fixed-rate
+  opts:
+    tps: 500
+</pre>
+                        <h3>Performance metrics for pt1-write-500tps</h3>
+                            <table style="min-width: 100%;">
+                                <tr>
+                                     <th>Name</th> <th>Succ</th> <th>Fail</th> <th>Send Rate (TPS)</th> <th>Max Latency (s)</th> <th>Min Latency (s)</th> <th>Avg Latency (s)</th> <th>Throughput (TPS)</th>
+                                </tr>
+                                <tr>
+                                     <td>pt1-write-500tps</td> <td>4443</td> <td>531</td> <td>198.4</td> <td>24.74</td> <td>0.19</td> <td>5.38</td> <td>190.0</td>
+                                </tr>
+                            </table>
+                        <h3>Resource utilization for pt1-write-500tps</h3>
+            </div>
+
+            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="pt1-write-1000tps">
+                <h2>Benchmark round: pt1-write-1000tps</h2>
+                <p></p>
+                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">txDuration: 20
+rateControl:
+  type: fixed-rate
+  opts:
+    tps: 1000
+</pre>
+                        <h3>Performance metrics for pt1-write-1000tps</h3>
+                            <table style="min-width: 100%;">
+                                <tr>
+                                     <th>Name</th> <th>Succ</th> <th>Fail</th> <th>Send Rate (TPS)</th> <th>Max Latency (s)</th> <th>Min Latency (s)</th> <th>Avg Latency (s)</th> <th>Throughput (TPS)</th>
+                                </tr>
+                                <tr>
+                                     <td>pt1-write-1000tps</td> <td>6131</td> <td>518</td> <td>239.6</td> <td>25.66</td> <td>0.32</td> <td>4.71</td> <td>223.2</td>
+                                </tr>
+                            </table>
+                        <h3>Resource utilization for pt1-write-1000tps</h3>
+            </div>
+
+            <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;" id="pt1-write-2000tps">
+                <h2>Benchmark round: pt1-write-2000tps</h2>
+                <p></p>
+                <pre style="overflow: visible;white-space: pre-wrap;max-height:100%;">txDuration: 20
+rateControl:
+  type: fixed-rate
+  opts:
+    tps: 2000
+</pre>
+                        <h3>Performance metrics for pt1-write-2000tps</h3>
+                            <table style="min-width: 100%;">
+                                <tr>
+                                     <th>Name</th> <th>Succ</th> <th>Fail</th> <th>Send Rate (TPS)</th> <th>Max Latency (s)</th> <th>Min Latency (s)</th> <th>Avg Latency (s)</th> <th>Throughput (TPS)</th>
+                                </tr>
+                                <tr>
+                                     <td>pt1-write-2000tps</td> <td>7523</td> <td>735</td> <td>345.9</td> <td>22.45</td> <td>0.29</td> <td>5.99</td> <td>326.6</td>
+                                </tr>
+                            </table>
+                        <h3>Resource utilization for pt1-write-2000tps</h3>
             </div>
 
             <div style="border-bottom: 1px solid #d9d9d9; padding-bottom: 10px;">
                 <h2>Test Environment</h2>
                 <h3>benchmark config</h3>
-                <pre id="benchmarkInfo" style="overflow: visible;white-space: pre-wrap;max-height:100%;">name: pt1-diag
-description: &gt;-
-  Diagnostic single-round runs to characterize write latency&#x2F;throughput before
-  committing to the full PT-1&#x2F;PT-2 matrix.
+                <pre id="benchmarkInfo" style="overflow: visible;white-space: pre-wrap;max-height:100%;">name: pt1-pt2-write-throughput-latency
+description: &gt;
+  PT-1: profile-write throughput at load points 200&#x2F;500&#x2F;1000&#x2F;2000 tx&#x2F;sec (PRD
+  NFR-1: &lt;3s @ 500 TPS). PT-2: write latency percentiles (p50&#x2F;p95&#x2F;p99) for the
+  same endorse-&gt;commit path, AND(Org1MSP.peer, OrgClient-tenant01MSP.peer). Each
+  round runs for a fixed 20s wall-clock window at its requested rate; Caliper
+  reports ACHIEVED throughput&#x2F;latency separately from the requested rate -- both
+  are captured verbatim in RESULTS.md, including any shortfall or failures at
+  higher load points this laptop&#39;s single-node-per-org Fabric network + IPFS
+  stack cannot sustain.
 workers:
-  number: 5
+  number: 25
 rounds:
-  - label: pt1-diag-20tps-5w
-    txDuration: 15
+  - label: pt1-write-200tps
+    txDuration: 20
     rateControl:
       type: fixed-rate
       opts:
-        tps: 20
+        tps: 200
     workload:
       module: .&#x2F;workload&#x2F;write.js
       arguments:
         tenantId: tenant01
-        roundLabel: pt1-diag-20tps-5w
+        roundLabel: pt1-write-200tps
+  - label: pt1-write-500tps
+    txDuration: 20
+    rateControl:
+      type: fixed-rate
+      opts:
+        tps: 500
+    workload:
+      module: .&#x2F;workload&#x2F;write.js
+      arguments:
+        tenantId: tenant01
+        roundLabel: pt1-write-500tps
+  - label: pt1-write-1000tps
+    txDuration: 20
+    rateControl:
+      type: fixed-rate
+      opts:
+        tps: 1000
+    workload:
+      module: .&#x2F;workload&#x2F;write.js
+      arguments:
+        tenantId: tenant01
+        roundLabel: pt1-write-1000tps
+  - label: pt1-write-2000tps
+    txDuration: 20
+    rateControl:
+      type: fixed-rate
+      opts:
+        tps: 2000
+    workload:
+      module: .&#x2F;workload&#x2F;write.js
+      arguments:
+        tenantId: tenant01
+        roundLabel: pt1-write-2000tps
 </pre>
                 <h3>SUT</h3>
                 <pre id="sutdetails">not provided</pre>
