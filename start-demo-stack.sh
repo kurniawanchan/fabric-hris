@@ -65,7 +65,11 @@ echo "  looks clean"
 
 echo "== 3/5: recreating the bridge keystore dir (wiped by macOS on reboot: /tmp is not persistent) =="
 mkdir -p "$KEYSTORE_DIR"
-echo "  $KEYSTORE_DIR ready"
+chmod 700 "$KEYSTORE_DIR"
+umask 077
+: > "$BRIDGE_LOG"
+: > "$QUEUE_LOG"
+echo "  $KEYSTORE_DIR ready (mode 700 -- /tmp is world-readable by default, this holds key material)"
 
 echo "== 4/5: starting integration-bridge on :$BRIDGE_PORT (background, log at $BRIDGE_LOG) =="
 if lsof -nP -iTCP:"$BRIDGE_PORT" -sTCP:LISTEN > /dev/null 2>&1; then
@@ -87,7 +91,7 @@ else
   BRIDGE_IPFS_PRIMARY_API=127.0.0.1:5001 \
   BRIDGE_IPFS_REPLICA_API=127.0.0.1:5002 \
   BRIDGE_API_KEY="${BRIDGE_API_KEY:?set BRIDGE_API_KEY to your own dev-only value}" \
-  BRIDGE_COMPANY_ID="${BRIDGE_COMPANY_ID:?set BRIDGE_COMPANY_ID to your local test tenant's company id}" \
+  BRIDGE_COMPANY_ID="${BRIDGE_COMPANY_ID:?set BRIDGE_COMPANY_ID to your local test tenant company id}" \
   BRIDGE_KEYSTORE_DIR="$KEYSTORE_DIR" \
   BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX="${BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX:?set BRIDGE_KEYSTORE_ENCRYPTION_KEY_HEX to your own dev-only 32-byte hex key -- never commit a real one}" \
   nohup go run ./cmd/integrationbridge > "$BRIDGE_LOG" 2>&1 &
